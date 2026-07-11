@@ -13,6 +13,7 @@
     "web": {
       "name": "Salão na Mão",
       "shortName": "Salão na Mão",
+      "favicon": "./imgs/favicon.png",
       "bundler": "metro"
     },
     "updates": {
