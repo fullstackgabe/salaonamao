@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, ReactNode } from 'react'
 import { View, Text, TextInput, TouchableOpacity, Image, ActivityIndicator, Platform } from 'react-native'
 import { fetchProfessionalById, updateProfessional, fetchPortfolios, uploadPortfolioImage, deletePortfolioItem, fetchServices, uploadAvatarImage } from '@/lib/repo'
 
-type Props = { professionalId: string }
+type Props = { professionalId: string; children?: ReactNode }
 
-export default function ProfessionalEditor({ professionalId }: Props) {
+export default function ProfessionalEditor({ professionalId, children }: Props) {
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState('')
   const [bio, setBio] = useState('')
@@ -120,6 +120,8 @@ export default function ProfessionalEditor({ professionalId }: Props) {
         </TouchableOpacity>
         {avatarMsg ? <Text style={{ color: '#dc2626', fontSize: 12, marginTop: 6 }}>{avatarMsg}</Text> : null}
       </View>
+
+      {children}
 
       <Text style={label}>Nome</Text>
       <TextInput value={name} onChangeText={setName} style={input} placeholder="Seu nome" placeholderTextColor="#9ca3af" />

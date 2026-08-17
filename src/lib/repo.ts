@@ -117,6 +117,21 @@ export async function fetchBookings(professionalId: string): Promise<any[]> {
   return data as any[]
 }
 
+export async function fetchBookingsDetailed(professionalId: string): Promise<any[]> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*, service:services(name), slot:availability_slots(start_time,end_time)')
+    .eq('professional_id', professionalId)
+    .order('created_at', { ascending: false })
+  if (error || !data) return []
+  return data as any[]
+}
+
+export async function cancelBooking(bookingId: string): Promise<{ error?: string }> {
+  const { error } = await supabase.rpc('cancel_booking', { p_booking_id: bookingId })
+  return error ? { error: error.message || 'Não foi possível cancelar.' } : {}
+}
+
 export async function bookSlot(
   slotId: string,
   serviceId: string,
@@ -126,6 +141,28 @@ export async function bookSlot(
 ): Promise<{ id?: string; error?: string }> {
   const { data, error } = await supabase.rpc('book_slot', {
     p_slot_id: slotId,
+    p_service_id: serviceId,
+    p_name: name,
+    p_email: email,
+    p_phone: phone,
+  })
+  if (error) return { error: error.message || 'Não foi possível reservar.' }
+  return { id: data as string }
+}
+
+export async function bookSlotByTime(
+  professionalId: string,
+  startTime: string,
+  endTime: string,
+  serviceId: string,
+  name: string,
+  email: string,
+  phone: string,
+): Promise<{ id?: string; error?: string }> {
+  const { data, error } = await supabase.rpc('book_slot_by_time', {
+    p_professional_id: professionalId,
+    p_start_time: startTime,
+    p_end_time: endTime,
     p_service_id: serviceId,
     p_name: name,
     p_email: email,

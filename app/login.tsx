@@ -31,7 +31,15 @@ export default function Login() {
         </View>
 
         {professionalId ? (
-          <ProfessionalEditor professionalId={String(professionalId)} />
+          <ProfessionalEditor professionalId={String(professionalId)}>
+            <TouchableOpacity
+              onPress={() => router.push('/minha-agenda')}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fce7f3', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 16 }}
+            >
+              <Text style={{ color: '#ec4899', fontWeight: '700', fontSize: 15 }}>Gerenciar agenda</Text>
+              <Text style={{ color: '#ec4899', fontWeight: '700' }}>›</Text>
+            </TouchableOpacity>
+          </ProfessionalEditor>
         ) : (
           <Text style={{ color: '#6b7280', textAlign: 'center', marginVertical: 16 }}>Sua conta ainda não está vinculada a um perfil.</Text>
         )}
