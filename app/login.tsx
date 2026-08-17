@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, Image } from 'react-native'
 import { router } from 'expo-router'
 import { useAuth } from '@/lib/auth'
 import ProfessionalEditor from '@/components/ProfessionalEditor'
@@ -38,7 +38,7 @@ export default function Login() {
 
         <TouchableOpacity
           onPress={async () => { await signOut(); goBackToApp() }}
-          style={{ borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 20 }}
+          style={{ borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 10 }}
         >
           <Text style={{ color: '#6b7280', fontWeight: '700', fontSize: 15 }}>Sair</Text>
         </TouchableOpacity>
@@ -49,9 +49,7 @@ export default function Login() {
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, backgroundColor: '#fff' }}>
       <View style={{ alignItems: 'center', marginBottom: 24 }}>
-        <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#fce7f3', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-          <Text style={{ fontSize: 30 }}>💇‍♀️</Text>
-        </View>
+        <Image source={require('../imgs/logo.png')} style={{ height: 56, width: 140, resizeMode: 'contain', marginBottom: 12 }} />
         <Text style={{ fontSize: 22, fontWeight: '700', color: '#111827' }}>Área do profissional</Text>
         <Text style={{ color: '#6b7280', marginTop: 4, textAlign: 'center' }}>Entre para gerenciar sua agenda</Text>
       </View>
