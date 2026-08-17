@@ -4,10 +4,11 @@ import { router } from 'expo-router'
 import { useAuth } from '@/lib/auth'
 import ProfessionalEditor from '@/components/ProfessionalEditor'
 
+const DEMO_EMAIL = 'ana@salaonamao.com'
+const DEMO_SENHA = 'salao1234'
+
 export default function Login() {
   const { session, signIn, signOut } = useAuth()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -15,10 +16,9 @@ export default function Login() {
 
   const submit = async () => {
     setBusy(true); setError(null)
-    const err = await signIn(email, password)
+    const err = await signIn(DEMO_EMAIL, DEMO_SENHA)
     setBusy(false)
-    if (err) { setError(err); return }
-    setPassword('')
+    if (err) setError(err)
   }
 
   if (session) {
@@ -46,8 +46,6 @@ export default function Login() {
     )
   }
 
-  const canSubmit = /.+@.+\..+/.test(email) && password.length >= 6
-
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, backgroundColor: '#fff' }}>
       <View style={{ alignItems: 'center', marginBottom: 24 }}>
@@ -59,29 +57,23 @@ export default function Login() {
       </View>
 
       <TextInput
-        value={email}
-        onChangeText={setEmail}
-        placeholder="E-mail"
-        placeholderTextColor="#9ca3af"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        style={{ borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12, fontSize: 15 }}
+        value={DEMO_EMAIL}
+        editable={false}
+        style={{ borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12, fontSize: 15, opacity: 0.7 }}
       />
       <TextInput
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Senha"
-        placeholderTextColor="#9ca3af"
+        value={DEMO_SENHA}
+        editable={false}
         secureTextEntry
-        style={{ borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8, fontSize: 15 }}
+        style={{ borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8, fontSize: 15, opacity: 0.7 }}
       />
 
       {error ? <Text style={{ color: '#dc2626', marginBottom: 8 }}>{error}</Text> : null}
 
       <TouchableOpacity
-        disabled={!canSubmit || busy}
+        disabled={busy}
         onPress={submit}
-        style={{ backgroundColor: !canSubmit || busy ? '#f9a8d4' : '#ec4899', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 4 }}
+        style={{ backgroundColor: '#ec4899', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 4 }}
       >
         {busy ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Entrar</Text>}
       </TouchableOpacity>

@@ -10,6 +10,7 @@ export default function TabsLayout() {
         headerShadowVisible: true,
         headerTitleStyle: { fontSize: 20, fontWeight: '600', color: '#111827' },
         headerTitleContainerStyle: { paddingLeft: 20 },
+        headerLeftContainerStyle: { paddingLeft: 20 },
         headerRightContainerStyle: { paddingRight: 20 },
         headerTintColor: '#111827',
         tabBarActiveTintColor: '#ec4899',
@@ -21,13 +22,18 @@ export default function TabsLayout() {
         options={{
           headerShown: true,
           title: 'Início',
+          headerTitle: () => null,
+          headerLeft: () => (
+            <Image source={require('../../imgs/logo.png')} style={{ height: 40, width: 100, resizeMode: 'contain' }} />
+          ),
           headerRight: () => (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Pressable onPress={() => router.push('/login')} hitSlop={12} style={{ padding: 4, opacity: 0.35 }}>
-                <Text style={{ fontSize: 15 }}>🔒</Text>
-              </Pressable>
-              <Image source={require('../../imgs/logo.png')} style={{ height: 40, width: 100, resizeMode: 'contain' }} />
-            </View>
+            <Pressable
+              onPress={() => router.push('/login')}
+              hitSlop={12}
+              style={{ backgroundColor: '#fce7f3', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#ec4899' }}>Login</Text>
+            </Pressable>
           ),
           tabBarIcon: ({ focused }) => (
             <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: focused ? '#f9a8d4' : '#fce7f3' }} />
