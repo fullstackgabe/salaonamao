@@ -16,7 +16,8 @@ export default function AgendaTab() {
   const [bookingsBySlot, setBookingsBySlot] = useState<Record<string, any>>({})
   const [reserveError, setReserveError] = useState<string | null>(null)
   const [reserveBusy, setReserveBusy] = useState(false)
-  const [pendingReserve, setPendingReserve] = useState<AvailabilitySlot | null>(null)
+  const [reserveOpen, setReserveOpen] = useState(false)
+  const [reserveStart, setReserveStart] = useState<Date | null>(null)
   const [reserveService, setReserveService] = useState<Service | null>(null)
   const [reserveName, setReserveName] = useState('')
   const [reserveEmail, setReserveEmail] = useState('')
@@ -24,15 +25,20 @@ export default function AgendaTab() {
   const [openServiceSelector, setOpenServiceSelector] = useState<boolean>(false)
   const modalAnim = useRef(new Animated.Value(0)).current
   useEffect(() => {
-    if (pendingReserve) {
+    if (reserveOpen) {
       modalAnim.setValue(0)
       Animated.timing(modalAnim, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start()
     }
-  }, [pendingReserve])
+  }, [reserveOpen])
+  const openReserveModal = () => {
+    setReserveService(null); setReserveStart(null)
+    setReserveName(''); setReserveEmail(''); setReservePhone('')
+    setReserveOpen(true)
+  }
   const closeModal = () => {
     setReserveError(null)
     setReserveBusy(false)
-    Animated.timing(modalAnim, { toValue: 0, duration: 180, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => setPendingReserve(null))
+    Animated.timing(modalAnim, { toValue: 0, duration: 180, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => setReserveOpen(false))
   }
   const modalAnimatedStyle = {
     transform: [{ translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
@@ -118,65 +124,31 @@ export default function AgendaTab() {
       .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
   }, [slots, selectedDate])
 
-  const eventsBusinessHours = useMemo(() => {
-    return upcomingForSelectedDay.filter((ev) => {
-      const h = new Date(ev.start_time).getHours()
-      return h >= BUSINESS_START_HOUR && h < BUSINESS_END_HOUR
-    })
+  const bookedForSelectedDay = useMemo(() => {
+    return upcomingForSelectedDay.filter((ev) => ev.status === 'reserved' || ev.status === 'blocked')
   }, [upcomingForSelectedDay])
 
-  const displayEvents = useMemo(() => {
-    if (!selected) return []
-    const blocks: AvailabilitySlot[] = []
-    for (let h = BUSINESS_START_HOUR; h < BUSINESS_END_HOUR; h++) {
-      const start = new Date(selectedDate); start.setHours(h, 0, 0, 0)
-      const end = new Date(selectedDate); end.setHours(h + 1, 0, 0, 0)
-      const slot = eventsBusinessHours.find((s) => {
-        const d = new Date(s.start_time)
-        return d.getFullYear() === selectedDate.getFullYear() && d.getMonth() === selectedDate.getMonth() && d.getDate() === selectedDate.getDate() && d.getHours() === h
+  const availableStartTimes = useMemo(() => {
+    if (!selected || !reserveService) return []
+    const durationMin = reserveService.duration_min
+    const stepMin = 30
+    const now = new Date()
+    const results: Date[] = []
+    for (let mins = BUSINESS_START_HOUR * 60; mins + durationMin <= BUSINESS_END_HOUR * 60; mins += stepMin) {
+      const start = new Date(selectedDate)
+      start.setHours(0, 0, 0, 0)
+      start.setMinutes(mins)
+      if (start < now) continue
+      const end = new Date(start.getTime() + durationMin * 60000)
+      const overlaps = bookedForSelectedDay.some((ev) => {
+        const evStart = new Date(ev.start_time)
+        const evEnd = new Date(ev.end_time)
+        return start < evEnd && end > evStart
       })
-      if (slot) {
-        blocks.push(slot)
-      } else {
-        blocks.push({
-          id: `free-${selected.id}-${start.toISOString()}`,
-          professional_id: selected.id,
-          start_time: start.toISOString(),
-          end_time: end.toISOString(),
-          status: 'available',
-        })
-      }
+      if (!overlaps) results.push(start)
     }
-    return blocks
-  }, [eventsBusinessHours, selected?.id, selectedDate])
-
-  const visibleEvents = useMemo(() => {
-    return [...displayEvents].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
-  }, [displayEvents])
-
-  const isBlockFree = (blk: AvailabilitySlot) => {
-    const booking = bookingsBySlot[String(blk.id)]
-    return !booking && blk.status !== 'blocked' && blk.status !== 'reserved'
-  }
-
-  const maxExtendHours = useMemo(() => {
-    if (!pendingReserve) return 1
-    const startHour = new Date(pendingReserve.start_time).getHours()
-    let count = 0
-    for (let h = startHour; h < BUSINESS_END_HOUR; h++) {
-      const blk = displayEvents.find((b) => new Date(b.start_time).getHours() === h)
-      if (!blk || !isBlockFree(blk)) break
-      count++
-    }
-    return Math.max(1, count)
-  }, [pendingReserve, displayEvents, bookingsBySlot])
-
-  const neededHours = useMemo(() => {
-    const mins = reserveService?.duration_min || 60
-    return Math.max(1, Math.ceil(mins / 60))
-  }, [reserveService])
-
-  const hasEnoughTime = neededHours <= maxExtendHours
+    return results
+  }, [selected, reserveService, selectedDate, bookedForSelectedDay])
 
   const formatDuration = (mins: number) => {
     const h = Math.floor(mins / 60)
@@ -281,75 +253,51 @@ export default function AgendaTab() {
           </View>
         </View>
         <View style={{ flex: 1, marginTop: 16, paddingTop: 16, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: '#f3f4f6', backgroundColor: '#ffffff' }}>
+          {selected && (
+            <TouchableOpacity onPress={openReserveModal} style={{ backgroundColor: '#ec4899', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginBottom: 16 }}>
+              <Text style={{ color: '#ffffff', fontWeight: '700' }}>Agendar horário</Text>
+            </TouchableOpacity>
+          )}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <Text style={{ color: '#111827', fontWeight: '700', fontSize: 15 }}>Eventos</Text>
           </View>
           {selected && (
-            (() => {
-              return (
-                <FlatList
-                data={visibleEvents}
-                keyExtractor={(ev) => String(ev.id)}
-                renderItem={({ item: ev }) => {
-                  const start = new Date(ev.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                  const end = new Date(ev.end_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                  const status = ev.status
-                  const booking = bookingsBySlot[String(ev.id)]
-                  const isFree = (!booking && status !== 'blocked' && status !== 'reserved')
-                  const serviceName = booking
-                    ? (servicesMap[String(booking.service_id)]?.name || 'Reservado')
-                    : (status === 'blocked' ? 'Bloqueado' : (status === 'reserved' ? 'Ocupado' : 'Livre'))
-                  const leftColor = status === 'blocked' ? '#991b1b' : '#111827'
-                  const cardBg = status === 'blocked' ? '#fee2e2' : (isFree ? '#ffffff' : '#fde7f3')
-                  const cardBorder = status === 'blocked' ? '#fca5a5' : (isFree ? '#e5e7eb' : '#fbcfe8')
-                  const timeChipBg = isFree ? 'transparent' : '#fbcfe8'
-                  const timeChipColor = isFree ? '#374151' : '#9d174d'
-                  return (
-                    <TouchableOpacity disabled={!isFree} activeOpacity={1} onPress={() => { setPendingReserve(ev); setReserveService(null); setReserveName(''); setReserveEmail(''); setReservePhone('') }} style={{ backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={{ color: leftColor, fontSize: 13, flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">{serviceName}</Text>
-                      </View>
-                      <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: timeChipBg }}>
-                        <Text style={{ color: timeChipColor, fontSize: 12 }}>{start}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  )
-                }}
-                ListEmptyComponent={<Text style={{ color: '#111827' }}>Nenhum evento para o dia selecionado</Text>}
-                contentContainerStyle={{ paddingBottom: 24 }}
-                showsVerticalScrollIndicator={false}
-              />
-              )
-            })()
+            <FlatList
+              data={bookedForSelectedDay}
+              keyExtractor={(ev) => String(ev.id)}
+              renderItem={({ item: ev }) => {
+                const start = new Date(ev.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                const end = new Date(ev.end_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                const status = ev.status
+                const booking = bookingsBySlot[String(ev.id)]
+                const serviceName = booking
+                  ? (servicesMap[String(booking.service_id)]?.name || 'Reservado')
+                  : (status === 'blocked' ? 'Bloqueado' : 'Ocupado')
+                const leftColor = status === 'blocked' ? '#991b1b' : '#111827'
+                const cardBg = status === 'blocked' ? '#fee2e2' : '#fde7f3'
+                const cardBorder = status === 'blocked' ? '#fca5a5' : '#fbcfe8'
+                return (
+                  <View style={{ backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ color: leftColor, fontSize: 13, flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">{serviceName}</Text>
+                    </View>
+                    <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: '#fbcfe8' }}>
+                      <Text style={{ color: '#9d174d', fontSize: 12 }}>{start} às {end}</Text>
+                    </View>
+                  </View>
+                )
+              }}
+              ListEmptyComponent={<Text style={{ color: '#6b7280' }}>Nenhum evento marcado ainda.</Text>}
+              contentContainerStyle={{ paddingBottom: 24 }}
+              showsVerticalScrollIndicator={false}
+            />
           )}
         </View>
       </View>
-      {pendingReserve && (
+      {reserveOpen && (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
           <Animated.View style={[{ width: '100%', maxWidth: 420, backgroundColor: '#ffffff', borderRadius: 12, padding: 16, position: 'relative' }, modalAnimatedStyle]}>
-              {pendingReserve && (() => {
-                const hoursForDisplay = reserveService ? neededHours : 1
-                const reserveEnd = new Date(pendingReserve.start_time)
-                reserveEnd.setHours(reserveEnd.getHours() + hoursForDisplay)
-                return (
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={{ fontWeight: '600', fontSize: 16, marginBottom: 6 }}>Agendar horário</Text>
-                    <Text style={{ color: '#6b7280' }}>das {new Date(pendingReserve.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} às {reserveEnd.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</Text>
-                    {reserveService && (
-                      <View style={{ marginTop: 8 }}>
-                        <Text style={{ color: '#374151', fontSize: 13 }}>
-                          Duração: <Text style={{ fontWeight: '700', color: '#111827' }}>{formatDuration(reserveService.duration_min)}</Text>
-                        </Text>
-                        {!hasEnoughTime && (
-                          <Text style={{ color: '#dc2626', fontSize: 12, marginTop: 6 }}>
-                            Não há horário livre suficiente para esse serviço a partir daqui. Só temos {maxExtendHours}h livre{maxExtendHours > 1 ? 's' : ''} em seguida.
-                          </Text>
-                        )}
-                      </View>
-                    )}
-                  </View>
-                )
-              })()}
+              <Text style={{ fontWeight: '600', fontSize: 16, marginBottom: 12 }}>Agendar horário</Text>
               <View style={{ marginBottom: 8 }}>
                 <Text>Serviço</Text>
                 <View style={{ marginTop: 6 }}>
@@ -358,7 +306,7 @@ export default function AgendaTab() {
                     keyExtractor={(item) => String(item.id)}
                     renderItem={({ item }) => (
                       <TouchableOpacity
-                        onPress={() => setReserveService(item)}
+                        onPress={() => { setReserveService(item); setReserveStart(null) }}
                         style={{ paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff' }}
                       >
                         <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#ec4899', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
@@ -390,6 +338,33 @@ export default function AgendaTab() {
                   />
                 </View>
               </View>
+              {reserveService && (
+                <View style={{ marginBottom: 8 }}>
+                  <Text>Horário ({formatDuration(reserveService.duration_min)})</Text>
+                  {availableStartTimes.length === 0 ? (
+                    <Text style={{ color: '#dc2626', fontSize: 13, marginTop: 6 }}>
+                      Não há horário livre suficiente para esse serviço nesse dia. Escolha outro dia ou serviço.
+                    </Text>
+                  ) : (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
+                      {availableStartTimes.map((t) => {
+                        const on = reserveStart?.getTime() === t.getTime()
+                        return (
+                          <TouchableOpacity
+                            key={t.toISOString()}
+                            onPress={() => setReserveStart(t)}
+                            style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: on ? '#ec4899' : '#e5e7eb', backgroundColor: on ? '#ec4899' : '#ffffff', marginRight: 8, marginBottom: 8 }}
+                          >
+                            <Text style={{ color: on ? '#ffffff' : '#374151', fontSize: 13, fontWeight: '600' }}>
+                              {t.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </Text>
+                          </TouchableOpacity>
+                        )
+                      })}
+                    </View>
+                  )}
+                </View>
+              )}
               <View style={{ marginBottom: 8 }}>
                 <Text>Nome completo</Text>
                 <TextInput value={reserveName} onChangeText={setReserveName} style={{ height: 36, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 10 }} />
@@ -404,24 +379,20 @@ export default function AgendaTab() {
               </View>
               {(() => {
                 const matched = reserveService
-                const valid = Boolean(matched && hasEnoughTime && reserveName.trim().length >= 3 && isEmailValid(reserveEmail) && reservePhone.replace(/\D/g, '').length >= 10)
+                const valid = Boolean(matched && reserveStart && reserveName.trim().length >= 3 && isEmailValid(reserveEmail) && reservePhone.replace(/\D/g, '').length >= 10)
                 const onMark = async () => {
-                  if (!pendingReserve || !matched || !selected || reserveBusy || !hasEnoughTime) return
+                  if (!matched || !reserveStart || !selected || reserveBusy) return
                   setReserveError(null)
                   setReserveBusy(true)
-                  const startHour = new Date(pendingReserve.start_time).getHours()
-                  for (let i = 0; i < neededHours; i++) {
-                    const h = startHour + i
-                    const blk = displayEvents.find((b) => new Date(b.start_time).getHours() === h) || pendingReserve
-                    const res = await bookSlotByTime(String(selected.id), blk.start_time, blk.end_time, String(matched.id), reserveName.trim(), reserveEmail.trim(), reservePhone)
-                    if (res.error) {
-                      setReserveError('Esse horário acabou de ser reservado. Escolha outro.')
-                      setReserveBusy(false)
-                      await loadAgenda(selected)
-                      return
-                    }
-                  }
+                  const end = new Date(reserveStart.getTime() + matched.duration_min * 60000)
+                  const res = await bookSlotByTime(String(selected.id), reserveStart.toISOString(), end.toISOString(), String(matched.id), reserveName.trim(), reserveEmail.trim(), reservePhone)
                   setReserveBusy(false)
+                  if (res.error) {
+                    setReserveError('Esse horário acabou de ser reservado. Escolha outro.')
+                    setReserveStart(null)
+                    await loadAgenda(selected)
+                    return
+                  }
                   await loadAgenda(selected)
                   closeModal()
                 }

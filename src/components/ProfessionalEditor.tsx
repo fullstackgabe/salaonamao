@@ -107,7 +107,7 @@ export default function ProfessionalEditor({ professionalId, children }: Props) 
 
   return (
     <View>
-      <View style={{ alignItems: 'center', marginBottom: 8 }}>
+      <View style={{ alignItems: 'center', marginBottom: 22 }}>
         <TouchableOpacity onPress={pickAvatar} disabled={avatarUploading} style={{ position: 'relative' }}>
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={{ width: 80, height: 80, borderRadius: 40 }} />
