@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "SalaoNaMao",
+    "slug": "beauty-app",
+    "scheme": "beautyapp",
+    "sdkVersion": "51.0.0",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "orientation": "portrait",
+    "web": {
+      "name": "Salão na Mão",
+      "shortName": "Salão na Mão",
+      "favicon": "./imgs/favicon.png",
+      "bundler": "metro"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {},
+    "extra": {
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
+    }
+  }
+}
