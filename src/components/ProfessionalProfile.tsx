@@ -107,8 +107,8 @@ export default function ProfessionalProfile({ professional }: Props) {
               <Text style={{ color: '#374151' }}>{item.comment}</Text>
             </View>
           ))}
-          <TouchableOpacity onPress={() => setReviewModalOpen(true)} style={{ marginTop: 8, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#ec4899', borderRadius: 10 }}>
-            <Text style={{ color: '#ffffff', fontWeight: '600', textAlign: 'center' }}>Publicar avaliação</Text>
+          <TouchableOpacity onPress={() => setReviewModalOpen(true)} style={{ marginTop: 8, paddingVertical: 14, alignItems: 'center', backgroundColor: '#ec4899', borderRadius: 10 }}>
+            <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 15 }}>Publicar avaliação</Text>
           </TouchableOpacity>
         </View>
       </View>

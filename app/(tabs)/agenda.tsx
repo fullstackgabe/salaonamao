@@ -150,6 +150,8 @@ export default function AgendaTab() {
         setReserveEmail('')
         setReservePhone('')
         setSelected(null)
+        setSelectedDate(new Date())
+        setMonthCursor(new Date())
       }
     }, [])
   )

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Pressable, Image } from 'react-native'
 import { router } from 'expo-router'
 import { useFocusEffect } from '@react-navigation/native'
@@ -12,10 +12,14 @@ export default function ServicesTab() {
   const [professionals, setProfessionals] = useState<Professional[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedService, setSelectedService] = useState<Service | null>(null)
+  const listRef = useRef<FlatList>(null)
 
   useFocusEffect(
     useCallback(() => {
-      return () => setSelectedService(null)
+      return () => {
+        setSelectedService(null)
+        listRef.current?.scrollToOffset({ offset: 0, animated: false })
+      }
     }, [])
   )
 
@@ -54,6 +58,7 @@ export default function ServicesTab() {
   return (
     <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
       <FlatList
+        ref={listRef}
         data={services}
         keyExtractor={(s) => String(s.id)}
         style={{ flex: 1 }}
