@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { View, Text, TouchableOpacity, Image, ActivityIndicator, Platform, ScrollView } from 'react-native'
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, ScrollView } from 'react-native'
 import { router } from 'expo-router'
 import { useAuth } from '@/lib/auth'
-import { fetchPortfolios, uploadPortfolioImage, deletePortfolioItem } from '@/lib/repo'
+import { fetchPortfolios, deletePortfolioItem } from '@/lib/repo'
 
 export default function MeusTrabalhos() {
   const { session } = useAuth()
@@ -10,7 +10,6 @@ export default function MeusTrabalhos() {
 
   const [portfolio, setPortfolio] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [uploading, setUploading] = useState(false)
   const [portfolioMsg, setPortfolioMsg] = useState<string | null>(null)
 
   const loadPortfolio = () => {
@@ -19,29 +18,6 @@ export default function MeusTrabalhos() {
   }
 
   useEffect(() => { loadPortfolio() }, [professionalId])
-
-  const openFilePicker = (onFile: (file: File) => void, onUnavailable: () => void) => {
-    const doc: any = (globalThis as any).document
-    if (Platform.OS !== 'web' || !doc) { onUnavailable(); return }
-    const input = doc.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
-    input.onchange = () => { const f = input.files?.[0]; if (f) onFile(f) }
-    input.click()
-  }
-
-  const pickPortfolio = () =>
-    openFilePicker(
-      async (file) => {
-        if (!professionalId) return
-        setUploading(true); setPortfolioMsg(null)
-        const res = await uploadPortfolioImage(String(professionalId), file)
-        setUploading(false)
-        if (res.error) setPortfolioMsg(res.error)
-        else loadPortfolio()
-      },
-      () => setPortfolioMsg('O upload está disponível na versão web.'),
-    )
 
   const removeItem = async (item: any) => {
     setPortfolioMsg(null)
@@ -74,11 +50,10 @@ export default function MeusTrabalhos() {
           </View>
         ))}
         <TouchableOpacity
-          onPress={pickPortfolio}
-          disabled={uploading}
-          style={{ width: 96, height: 96, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafafa' }}
+          disabled
+          style={{ width: 96, height: 96, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafafa', opacity: 0.7 }}
         >
-          {uploading ? <ActivityIndicator color="#ec4899" /> : <Text style={{ color: '#9ca3af', fontSize: 28 }}>＋</Text>}
+          <Text style={{ color: '#9ca3af', fontSize: 28 }}>＋</Text>
         </TouchableOpacity>
       </View>
       {portfolioMsg ? <Text style={{ color: '#dc2626', marginTop: 6 }}>{portfolioMsg}</Text> : null}

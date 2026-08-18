@@ -14,7 +14,7 @@ export default function Profiles() {
   }, [])
   useFocusEffect(
     useCallback(() => {
-      return () => listRef.current?.scrollToOffset({ offset: 0, animated: false })
+      listRef.current?.scrollToOffset({ offset: 0, animated: false })
     }, [])
   )
   if (loading) {

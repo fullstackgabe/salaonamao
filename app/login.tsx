@@ -52,13 +52,15 @@ export default function Login() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<{ name: string; avatar_url: string } | null>(null)
+  const [profileLoading, setProfileLoading] = useState(true)
 
   const professionalId = session?.user?.app_metadata?.professional_id
 
   useEffect(() => {
-    if (!professionalId) return
+    if (!professionalId) { setProfileLoading(false); return }
     fetchProfessionalById(String(professionalId)).then((p) => {
       if (p) setProfile({ name: p.name || '', avatar_url: typeof p.avatar_url === 'string' ? p.avatar_url : '' })
+      setProfileLoading(false)
     })
   }, [professionalId])
 
@@ -87,14 +89,20 @@ export default function Login() {
   if (session) {
     return (
       <ScrollView contentContainerStyle={{ padding: 24, backgroundColor: '#fff', flexGrow: 1 }}>
-        <View style={{ alignItems: 'center', marginBottom: 24 }}>
-          {profile?.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={{ width: 80, height: 80, borderRadius: 40, marginBottom: 12 }} />
+        <View style={{ alignItems: 'center', marginBottom: 24, minHeight: 132, justifyContent: 'center' }}>
+          {profileLoading ? (
+            <ActivityIndicator color="#ec4899" />
           ) : (
-            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#e5e7eb', marginBottom: 12 }} />
+            <>
+              {profile?.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={{ width: 80, height: 80, borderRadius: 40, marginBottom: 12 }} />
+              ) : (
+                <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#e5e7eb', marginBottom: 12 }} />
+              )}
+              <Text style={{ fontSize: 20, fontWeight: '700', color: '#111827' }}>{profile?.name || 'Meu perfil'}</Text>
+              <Text style={{ color: '#6b7280', marginTop: 4 }}>{session?.user?.email}</Text>
+            </>
           )}
-          <Text style={{ fontSize: 20, fontWeight: '700', color: '#111827' }}>{profile?.name || 'Meu perfil'}</Text>
-          <Text style={{ color: '#6b7280', marginTop: 4 }}>{session?.user?.email}</Text>
         </View>
 
         {professionalId ? (

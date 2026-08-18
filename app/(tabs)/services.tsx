@@ -16,10 +16,8 @@ export default function ServicesTab() {
 
   useFocusEffect(
     useCallback(() => {
-      return () => {
-        setSelectedService(null)
-        listRef.current?.scrollToOffset({ offset: 0, animated: false })
-      }
+      listRef.current?.scrollToOffset({ offset: 0, animated: false })
+      return () => setSelectedService(null)
     }, [])
   )
 
