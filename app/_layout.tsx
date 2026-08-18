@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router'
+import { Stack, router } from 'expo-router'
 import { Platform, SafeAreaView } from 'react-native'
 import { AuthProvider } from '@/lib/auth'
 import StackHeader from '@/components/StackHeader'
@@ -24,8 +24,9 @@ export default function RootLayout() {
           header: ({ options, navigation, back }) => (
             <StackHeader
               title={typeof options.title === 'string' ? options.title : ''}
-              canGoBack={!!back}
-              onBack={() => navigation.goBack()}
+              canGoBack={true}
+              onBack={() => (back ? navigation.goBack() : router.replace('/(tabs)'))}
+              right={(options as any).headerRight ? (options as any).headerRight() : undefined}
             />
           ),
         }}>

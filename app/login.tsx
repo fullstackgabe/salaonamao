@@ -59,7 +59,7 @@ export default function Login() {
       <View style={{ alignItems: 'center', marginBottom: 24 }}>
         <Image source={require('../imgs/logo.png')} style={{ height: 56, width: 140, resizeMode: 'contain', marginBottom: 12 }} />
         <Text style={{ fontSize: 22, fontWeight: '700', color: '#111827' }}>Área do profissional</Text>
-        <Text style={{ color: '#6b7280', marginTop: 4, textAlign: 'center' }}>Entre para gerenciar sua agenda</Text>
+        <Text style={{ color: '#6b7280', marginTop: 4, textAlign: 'center' }}>Entre para gerenciar sua agenda e seu perfil</Text>
       </View>
 
       <TextInput

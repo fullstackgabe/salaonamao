@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, FlatList, TouchableOpacity, Dimensions, Image, TextInput, Animated, Easing, Platform } from 'react-native'
-import { fetchProfessionals, fetchServices, fetchSlots, fetchBookings, bookSlotByTime } from '@/lib/repo'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { View, Text, FlatList, TouchableOpacity, Dimensions, Image, TextInput, Animated, Easing } from 'react-native'
+import { fetchProfessionals, fetchServices, fetchSlots, fetchBookings, fetchDaysOff, bookSlotByTime } from '@/lib/repo'
 import { AvailabilitySlot, Professional, Service } from '@/types'
  
 
@@ -14,6 +14,7 @@ export default function AgendaTab() {
   const [openSelector, setOpenSelector] = useState<boolean>(false)
   const [selectorH, setSelectorH] = useState<number>(0)
   const [bookingsBySlot, setBookingsBySlot] = useState<Record<string, any>>({})
+  const [daysOff, setDaysOff] = useState<Set<string>>(new Set())
   const [reserveError, setReserveError] = useState<string | null>(null)
   const [reserveBusy, setReserveBusy] = useState(false)
   const [reserveOpen, setReserveOpen] = useState(false)
@@ -68,6 +69,11 @@ export default function AgendaTab() {
     return d.length <= 2 ? part1 : d.length <= 7 ? `(${part1}) ${part2}` : `(${part1}) ${part2}-${part3}`
   }
   const onPhoneChange = (t: string) => setReservePhone(formatPhone(t))
+  const formatTimeInput = (input: string) => {
+    const digits = input.replace(/\D/g, '').slice(0, 4)
+    if (digits.length <= 2) return digits
+    return `${digits.slice(0, 2)}:${digits.slice(2)}`
+  }
   const isEmailValid = (e: string) => /.+@.+\..+/.test(e)
   const BUSINESS_START_HOUR = 10
   const BUSINESS_END_HOUR = 20
@@ -92,15 +98,17 @@ export default function AgendaTab() {
   }, [])
 
   const loadAgenda = async (prof: Professional | null) => {
-    if (!prof) { setSlots([]); setBookingsBySlot({}); return }
-    const [sl, bk] = await Promise.all([
+    if (!prof) { setSlots([]); setBookingsBySlot({}); setDaysOff(new Set()); return }
+    const [sl, bk, off] = await Promise.all([
       fetchSlots(String(prof.id)),
       fetchBookings(String(prof.id)),
+      fetchDaysOff(String(prof.id)),
     ])
     setSlots(sl as AvailabilitySlot[])
     const map: Record<string, any> = {}
     ;(bk as any[]).forEach((b) => { if (b?.slot_id) map[String(b.slot_id)] = b })
     setBookingsBySlot(map)
+    setDaysOff(new Set(off))
   }
 
   useEffect(() => { loadAgenda(selected) }, [selected?.id])
@@ -136,11 +144,65 @@ export default function AgendaTab() {
     return d
   }, [reserveTimeStr, selectedDate])
 
+  const dateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+  const isWeekend = selectedDate.getDay() === 0 || selectedDate.getDay() === 6
+  const dayUnavailable = isWeekend || daysOff.has(dateKey(selectedDate))
+
+  const isSelectedDateToday = selectedDate.toDateString() === new Date().toDateString()
+
+  const minStartMinutesToday = () => {
+    const now = new Date()
+    return Math.ceil((now.getHours() * 60 + now.getMinutes()) / 15) * 15
+  }
+
+  const minStartMinutes = isSelectedDateToday
+    ? Math.max(BUSINESS_START_HOUR * 60, minStartMinutesToday())
+    : BUSINESS_START_HOUR * 60
+
+  const todayClosed = isSelectedDateToday && minStartMinutesToday() >= BUSINESS_END_HOUR * 60
+
+  useEffect(() => {
+    if (!reserveStart) return
+    const mins = reserveStart.getHours() * 60 + reserveStart.getMinutes()
+    if (mins < minStartMinutes) {
+      const hh = Math.floor(minStartMinutes / 60)
+      const mm = minStartMinutes % 60
+      setReserveTimeStr(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`)
+    }
+  }, [reserveStart, minStartMinutes])
+
+  const dayFullyBooked = useMemo(() => {
+    if (!reserveService || todayClosed) return false
+    const durationMin = reserveService.duration_min
+    for (let mins = minStartMinutes; mins + durationMin <= BUSINESS_END_HOUR * 60; mins += 15) {
+      const start = new Date(selectedDate)
+      start.setHours(0, 0, 0, 0)
+      start.setMinutes(mins)
+      const end = new Date(start.getTime() + durationMin * 60000)
+      const overlaps = bookedForSelectedDay.some((ev) => {
+        const evStart = new Date(ev.start_time)
+        const evEnd = new Date(ev.end_time)
+        return start < evEnd && end > evStart
+      })
+      if (!overlaps) return false
+    }
+    return true
+  }, [reserveService, todayClosed, minStartMinutes, selectedDate, bookedForSelectedDay])
+
   const timeAvailability = useMemo(() => {
     if (!reserveStart || !reserveService) return null
     const mins = reserveStart.getHours() * 60 + reserveStart.getMinutes()
-    if (mins < BUSINESS_START_HOUR * 60 || mins + reserveService.duration_min > BUSINESS_END_HOUR * 60) {
-      return { ok: false, reason: `Fora do horário de atendimento (${BUSINESS_START_HOUR}h às ${BUSINESS_END_HOUR}h).` }
+    if (mins < BUSINESS_START_HOUR * 60) {
+      return { ok: false, reason: 'Fora do horário de atendimento.' }
+    }
+    if (mins + reserveService.duration_min > BUSINESS_END_HOUR * 60) {
+      return {
+        ok: false,
+        reason: isSelectedDateToday
+          ? 'Hoje não temos mais horários disponíveis.'
+          : `Esse horário não cabe no expediente (até ${BUSINESS_END_HOUR}h).`,
+      }
     }
     if (reserveStart < new Date()) {
       return { ok: false, reason: 'Esse horário já passou.' }
@@ -161,6 +223,19 @@ export default function AgendaTab() {
     if (h === 0) return `${m}min`
     if (m === 0) return `${h}h`
     return `${h}h${String(m).padStart(2, '0')}`
+  }
+
+  const adjustReserveTime = (deltaMin: number) => {
+    const base = reserveStart || (() => {
+      const d = new Date(selectedDate)
+      d.setHours(Math.floor(minStartMinutes / 60), minStartMinutes % 60, 0, 0)
+      return d
+    })()
+    const next = new Date(base.getTime() + deltaMin * 60000)
+    const mins = Math.min(Math.max(next.getHours() * 60 + next.getMinutes(), minStartMinutes), BUSINESS_END_HOUR * 60)
+    const hh = Math.floor(mins / 60)
+    const mm = mins % 60
+    setReserveTimeStr(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`)
   }
 
   return (
@@ -258,6 +333,12 @@ export default function AgendaTab() {
           </View>
         </View>
         <View style={{ flex: 1, marginTop: 16, paddingTop: 16, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: '#f3f4f6', backgroundColor: '#ffffff' }}>
+          {selected && dayUnavailable ? (
+            <Text style={{ color: '#ec4899', fontSize: 14, fontWeight: '700', paddingVertical: 16 }}>
+              Indisponível nesse dia.
+            </Text>
+          ) : (
+            <>
           {selected && (
             <TouchableOpacity onPress={openReserveModal} style={{ backgroundColor: '#ec4899', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginBottom: 16 }}>
               <Text style={{ color: '#ffffff', fontWeight: '700' }}>Agendar horário</Text>
@@ -292,10 +373,12 @@ export default function AgendaTab() {
                   </View>
                 )
               }}
-              ListEmptyComponent={<Text style={{ color: '#6b7280' }}>Nenhum evento marcado ainda.</Text>}
+              ListEmptyComponent={<Text style={{ color: '#6b7280' }}>Nenhum evento para esse dia.</Text>}
               contentContainerStyle={{ paddingBottom: 24 }}
               showsVerticalScrollIndicator={false}
             />
+          )}
+            </>
           )}
         </View>
       </View>
@@ -319,7 +402,10 @@ export default function AgendaTab() {
                             <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#ec4899' }} />
                           )}
                         </View>
-                        <Text style={{ color: '#111827', flex: 1 }}>{item.name}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: '#111827' }}>{item.name}</Text>
+                          <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 2 }}>{formatDuration(item.duration_min)}</Text>
+                        </View>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
                           {((item.tags || []).includes('promocao')) ? (
                             <>
@@ -343,46 +429,51 @@ export default function AgendaTab() {
                   />
                 </View>
               </View>
-              {reserveService && (
-                <View style={{ marginBottom: 8 }}>
-                  <Text>Horário ({formatDuration(reserveService.duration_min)})</Text>
-                  <View style={{ marginTop: 6 }}>
-                    {Platform.OS === 'web' ? (
-                      React.createElement('input', {
-                        type: 'time',
-                        value: reserveTimeStr,
-                        step: 60,
-                        min: `${String(BUSINESS_START_HOUR).padStart(2, '0')}:00`,
-                        max: `${String(BUSINESS_END_HOUR).padStart(2, '0')}:00`,
-                        onChange: (e: any) => setReserveTimeStr(e.target.value),
-                        style: {
-                          border: '1px solid #e5e7eb',
-                          borderRadius: 8,
-                          padding: '9px 10px',
-                          fontSize: 15,
-                          width: '100%',
-                          boxSizing: 'border-box',
-                          fontFamily: 'inherit',
-                          color: '#111827',
-                          accentColor: '#ec4899',
-                        },
-                      })
-                    ) : (
-                      <TextInput
-                        value={reserveTimeStr}
-                        onChangeText={setReserveTimeStr}
-                        placeholder="HH:MM"
-                        style={{ height: 40, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 10 }}
-                      />
-                    )}
-                  </View>
-                  {reserveTimeStr && timeAvailability && (
-                    <Text style={{ color: timeAvailability.ok ? '#16a34a' : '#dc2626', fontSize: 13, marginTop: 6, fontWeight: '600' }}>
-                      {timeAvailability.ok ? 'Horário disponível ✓' : timeAvailability.reason}
+              <View style={{ marginBottom: 8 }}>
+                  {todayClosed ? (
+                    <Text style={{ color: '#ec4899', fontSize: 14, fontWeight: '700', paddingVertical: 16 }}>
+                      Hoje não temos mais horários disponíveis.
                     </Text>
+                  ) : dayFullyBooked ? (
+                    <Text style={{ color: '#ec4899', fontSize: 14, fontWeight: '700', paddingVertical: 16 }}>
+                      Agenda lotada nesse dia.
+                    </Text>
+                  ) : (
+                    <>
+                      <Text>Horário</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                        <TouchableOpacity
+                          onPress={() => adjustReserveTime(-15)}
+                          style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#fce7f3', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}
+                        >
+                          <Text style={{ fontSize: 16, color: '#ec4899', fontWeight: '700' }}>−</Text>
+                        </TouchableOpacity>
+                        <TextInput
+                          value={reserveTimeStr}
+                          onChangeText={(t) => setReserveTimeStr(formatTimeInput(t))}
+                          placeholder="--:--"
+                          keyboardType="number-pad"
+                          maxLength={5}
+                          style={{ flex: 1, height: 36, borderWidth: 1, borderColor: '#ec4899', borderRadius: 8, paddingHorizontal: 10, textAlign: 'center', fontSize: 15, color: '#111827' }}
+                        />
+                        <TouchableOpacity
+                          onPress={() => adjustReserveTime(15)}
+                          style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#fce7f3', alignItems: 'center', justifyContent: 'center', marginLeft: 8 }}
+                        >
+                          <Text style={{ fontSize: 16, color: '#ec4899', fontWeight: '700' }}>+</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 4 }}>
+                        Atendemos das {BUSINESS_START_HOUR}h às {BUSINESS_END_HOUR}h.
+                      </Text>
+                      {reserveTimeStr && timeAvailability && (
+                        <Text style={{ color: timeAvailability.ok ? '#16a34a' : '#dc2626', fontSize: 13, marginTop: 6, fontWeight: '600' }}>
+                          {timeAvailability.ok ? 'Horário disponível ✓' : timeAvailability.reason}
+                        </Text>
+                      )}
+                    </>
                   )}
-                </View>
-              )}
+              </View>
               <View style={{ marginBottom: 8 }}>
                 <Text>Nome completo</Text>
                 <TextInput value={reserveName} onChangeText={setReserveName} style={{ height: 36, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 10 }} />

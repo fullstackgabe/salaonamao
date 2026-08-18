@@ -132,6 +132,29 @@ export async function cancelBooking(bookingId: string): Promise<{ error?: string
   return error ? { error: error.message || 'Não foi possível cancelar.' } : {}
 }
 
+export async function fetchDaysOff(professionalId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('professional_days_off')
+    .select('day')
+    .eq('professional_id', professionalId)
+  if (error || !data) return []
+  return data.map((r: any) => r.day as string)
+}
+
+export async function addDayOff(professionalId: string, day: string): Promise<{ error?: string }> {
+  const { error } = await supabase.from('professional_days_off').insert({ professional_id: professionalId, day })
+  return error ? { error: error.message || 'Não foi possível bloquear o dia.' } : {}
+}
+
+export async function removeDayOff(professionalId: string, day: string): Promise<{ error?: string }> {
+  const { error } = await supabase
+    .from('professional_days_off')
+    .delete()
+    .eq('professional_id', professionalId)
+    .eq('day', day)
+  return error ? { error: error.message || 'Não foi possível liberar o dia.' } : {}
+}
+
 export async function bookSlot(
   slotId: string,
   serviceId: string,
