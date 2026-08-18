@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, FlatList, TouchableOpacity, Dimensions, Image, TextInput, Animated, Easing } from 'react-native'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { View, Text, FlatList, TouchableOpacity, Dimensions, Image, TextInput, Animated, Easing, Platform } from 'react-native'
 import { fetchProfessionals, fetchServices, fetchSlots, fetchBookings, bookSlotByTime } from '@/lib/repo'
 import { AvailabilitySlot, Professional, Service } from '@/types'
  
@@ -17,7 +17,7 @@ export default function AgendaTab() {
   const [reserveError, setReserveError] = useState<string | null>(null)
   const [reserveBusy, setReserveBusy] = useState(false)
   const [reserveOpen, setReserveOpen] = useState(false)
-  const [reserveStart, setReserveStart] = useState<Date | null>(null)
+  const [reserveTimeStr, setReserveTimeStr] = useState('')
   const [reserveService, setReserveService] = useState<Service | null>(null)
   const [reserveName, setReserveName] = useState('')
   const [reserveEmail, setReserveEmail] = useState('')
@@ -31,7 +31,7 @@ export default function AgendaTab() {
     }
   }, [reserveOpen])
   const openReserveModal = () => {
-    setReserveService(null); setReserveStart(null)
+    setReserveService(null); setReserveTimeStr('')
     setReserveName(''); setReserveEmail(''); setReservePhone('')
     setReserveOpen(true)
   }
@@ -128,27 +128,32 @@ export default function AgendaTab() {
     return upcomingForSelectedDay.filter((ev) => ev.status === 'reserved' || ev.status === 'blocked')
   }, [upcomingForSelectedDay])
 
-  const availableStartTimes = useMemo(() => {
-    if (!selected || !reserveService) return []
-    const durationMin = reserveService.duration_min
-    const stepMin = 30
-    const now = new Date()
-    const results: Date[] = []
-    for (let mins = BUSINESS_START_HOUR * 60; mins + durationMin <= BUSINESS_END_HOUR * 60; mins += stepMin) {
-      const start = new Date(selectedDate)
-      start.setHours(0, 0, 0, 0)
-      start.setMinutes(mins)
-      if (start < now) continue
-      const end = new Date(start.getTime() + durationMin * 60000)
-      const overlaps = bookedForSelectedDay.some((ev) => {
-        const evStart = new Date(ev.start_time)
-        const evEnd = new Date(ev.end_time)
-        return start < evEnd && end > evStart
-      })
-      if (!overlaps) results.push(start)
+  const reserveStart = useMemo(() => {
+    if (!reserveTimeStr || !/^\d{2}:\d{2}$/.test(reserveTimeStr)) return null
+    const [hh, mm] = reserveTimeStr.split(':').map(Number)
+    const d = new Date(selectedDate)
+    d.setHours(hh, mm, 0, 0)
+    return d
+  }, [reserveTimeStr, selectedDate])
+
+  const timeAvailability = useMemo(() => {
+    if (!reserveStart || !reserveService) return null
+    const mins = reserveStart.getHours() * 60 + reserveStart.getMinutes()
+    if (mins < BUSINESS_START_HOUR * 60 || mins + reserveService.duration_min > BUSINESS_END_HOUR * 60) {
+      return { ok: false, reason: `Fora do horário de atendimento (${BUSINESS_START_HOUR}h às ${BUSINESS_END_HOUR}h).` }
     }
-    return results
-  }, [selected, reserveService, selectedDate, bookedForSelectedDay])
+    if (reserveStart < new Date()) {
+      return { ok: false, reason: 'Horário não disponível.' }
+    }
+    const end = new Date(reserveStart.getTime() + reserveService.duration_min * 60000)
+    const overlaps = bookedForSelectedDay.some((ev) => {
+      const evStart = new Date(ev.start_time)
+      const evEnd = new Date(ev.end_time)
+      return reserveStart < evEnd && end > evStart
+    })
+    if (overlaps) return { ok: false, reason: 'Horário não disponível.' }
+    return { ok: true, reason: '' }
+  }, [reserveStart, reserveService, bookedForSelectedDay])
 
   const formatDuration = (mins: number) => {
     const h = Math.floor(mins / 60)
@@ -306,7 +311,7 @@ export default function AgendaTab() {
                     keyExtractor={(item) => String(item.id)}
                     renderItem={({ item }) => (
                       <TouchableOpacity
-                        onPress={() => { setReserveService(item); setReserveStart(null) }}
+                        onPress={() => { setReserveService(item); setReserveTimeStr('') }}
                         style={{ paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff' }}
                       >
                         <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#ec4899', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
@@ -341,27 +346,37 @@ export default function AgendaTab() {
               {reserveService && (
                 <View style={{ marginBottom: 8 }}>
                   <Text>Horário ({formatDuration(reserveService.duration_min)})</Text>
-                  {availableStartTimes.length === 0 ? (
-                    <Text style={{ color: '#dc2626', fontSize: 13, marginTop: 6 }}>
-                      Não há horário livre suficiente para esse serviço nesse dia. Escolha outro dia ou serviço.
+                  <View style={{ marginTop: 6 }}>
+                    {Platform.OS === 'web' ? (
+                      React.createElement('input', {
+                        type: 'time',
+                        value: reserveTimeStr,
+                        step: 60,
+                        onChange: (e: any) => setReserveTimeStr(e.target.value),
+                        style: {
+                          border: '1px solid #e5e7eb',
+                          borderRadius: 8,
+                          padding: '9px 10px',
+                          fontSize: 15,
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          fontFamily: 'inherit',
+                          color: '#111827',
+                        },
+                      })
+                    ) : (
+                      <TextInput
+                        value={reserveTimeStr}
+                        onChangeText={setReserveTimeStr}
+                        placeholder="HH:MM"
+                        style={{ height: 40, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 10 }}
+                      />
+                    )}
+                  </View>
+                  {reserveTimeStr && timeAvailability && (
+                    <Text style={{ color: timeAvailability.ok ? '#16a34a' : '#dc2626', fontSize: 13, marginTop: 6, fontWeight: '600' }}>
+                      {timeAvailability.ok ? 'Horário disponível ✓' : timeAvailability.reason}
                     </Text>
-                  ) : (
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
-                      {availableStartTimes.map((t) => {
-                        const on = reserveStart?.getTime() === t.getTime()
-                        return (
-                          <TouchableOpacity
-                            key={t.toISOString()}
-                            onPress={() => setReserveStart(t)}
-                            style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: on ? '#ec4899' : '#e5e7eb', backgroundColor: on ? '#ec4899' : '#ffffff', marginRight: 8, marginBottom: 8 }}
-                          >
-                            <Text style={{ color: on ? '#ffffff' : '#374151', fontSize: 13, fontWeight: '600' }}>
-                              {t.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                            </Text>
-                          </TouchableOpacity>
-                        )
-                      })}
-                    </View>
                   )}
                 </View>
               )}
@@ -379,9 +394,9 @@ export default function AgendaTab() {
               </View>
               {(() => {
                 const matched = reserveService
-                const valid = Boolean(matched && reserveStart && reserveName.trim().length >= 3 && isEmailValid(reserveEmail) && reservePhone.replace(/\D/g, '').length >= 10)
+                const valid = Boolean(matched && reserveStart && timeAvailability?.ok && reserveName.trim().length >= 3 && isEmailValid(reserveEmail) && reservePhone.replace(/\D/g, '').length >= 10)
                 const onMark = async () => {
-                  if (!matched || !reserveStart || !selected || reserveBusy) return
+                  if (!matched || !reserveStart || !timeAvailability?.ok || !selected || reserveBusy) return
                   setReserveError(null)
                   setReserveBusy(true)
                   const end = new Date(reserveStart.getTime() + matched.duration_min * 60000)
@@ -389,7 +404,7 @@ export default function AgendaTab() {
                   setReserveBusy(false)
                   if (res.error) {
                     setReserveError('Esse horário acabou de ser reservado. Escolha outro.')
-                    setReserveStart(null)
+                    setReserveTimeStr('')
                     await loadAgenda(selected)
                     return
                   }
