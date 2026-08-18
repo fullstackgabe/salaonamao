@@ -37,25 +37,6 @@ export default function ProfessionalProfile({ professional }: Props) {
       ]).start()
     }
   }, [reviewModalOpen])
-  const iconFor = (name: string) => {
-    const n = name.toLowerCase()
-    if (n.includes('corte')) return '✂️'
-    if (n.includes('escova')) return '💨'
-    if (n.includes('chapinha')) return '🔥'
-    if (n.includes('progressiva')) return '💁‍♀️'
-    if (n.includes('hidrat')) return '💧'
-    if (n.includes('reconstr')) return '🧪'
-    if (n.includes('color')) return '🎨'
-    if (n.includes('mecha') || n.includes('luzes')) return '✨'
-    if (n.includes('tonal')) return '🌈'
-    if (n.includes('babyliss')) return '🌀'
-    if (n.includes('penteado')) return '👱‍♀️'
-    if (n.includes('maqui')) return '💄'
-    if (n.includes('manicure') || n.includes('pedicure')) return '💅'
-    if (n.includes('sobrancelha')) return '👁️'
-    if (n.includes('depila')) return '🧴'
-    return '⭐'
-  }
   const publishReview = async () => {
     if (!newRating || !newComment.trim()) return
     const res = await addReview(String(professional.id), newRating, newComment.trim())
@@ -68,7 +49,7 @@ export default function ProfessionalProfile({ professional }: Props) {
   return (
     <View style={{ flex: 1 }}>
     <ScrollView style={{ flex: 1 }}>
-      <View style={{ padding: 16 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
         {professional.avatar_url ? (
           <Image source={typeof professional.avatar_url === 'number' ? professional.avatar_url : { uri: professional.avatar_url }} style={{ width: 96, height: 96, borderRadius: 48 }} />
         ) : (
@@ -79,26 +60,21 @@ export default function ProfessionalProfile({ professional }: Props) {
         <View style={{ marginTop: 28 }}>
           <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 8 }}>Especialidades</Text>
           {services.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
               {services.map((item) => (
-                <View key={String(item.id)} style={{ width: 120, marginRight: 12, padding: 12, backgroundColor: '#fdf2f8', borderRadius: 12 }}>
-                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#fce7f3', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
-                    <Text style={{ fontSize: 20 }}>{iconFor(item.name)}</Text>
-                  </View>
-                  <Text style={{ fontSize: 14, fontWeight: '600' }} numberOfLines={2}>{item.name}</Text>
-                  <Text style={{ color: '#6b7280', marginTop: 4 }}>{Math.round(item.duration_min)} min</Text>
+                <View key={String(item.id)} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 6, marginBottom: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9999, borderWidth: 1, borderColor: '#ec4899', backgroundColor: '#fce7f3' }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#ec4899' }}>{item.name}</Text>
+                  <Text style={{ color: '#ec4899', marginLeft: 4, fontSize: 11 }}>{Math.round(item.duration_min)} min</Text>
                 </View>
               ))}
-            </ScrollView>
+            </View>
           ) : (
             <Text style={{ color: '#9ca3af' }}>Nenhuma especialidade cadastrada ainda.</Text>
           )}
         </View>
       </View>
 
-      
-
-      <View style={{ padding: 16 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
         <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 8 }}>Portfólio</Text>
         {portfolio.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -110,7 +86,7 @@ export default function ProfessionalProfile({ professional }: Props) {
             ))}
           </ScrollView>
         ) : (
-          <Text style={{ color: '#9ca3af' }}>Nenhuma imagem no portfólio ainda.</Text>
+          <Text style={{ color: '#9ca3af' }}>Nenhuma imagem ainda.</Text>
         )}
       </View>
 
@@ -131,7 +107,7 @@ export default function ProfessionalProfile({ professional }: Props) {
             </View>
           ))}
           <TouchableOpacity onPress={() => setReviewModalOpen(true)} style={{ marginTop: 8, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#ec4899', borderRadius: 10 }}>
-            <Text style={{ color: '#ffffff', fontWeight: '600', textAlign: 'center' }}>Publicar avaliação</Text>
+            <Text style={{ color: '#ffffff', fontWeight: '600', textAlign: 'center' }}>Deixar avaliação</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -140,7 +116,7 @@ export default function ProfessionalProfile({ professional }: Props) {
       {reviewModalOpen && (
         <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, opacity: modalOpacity }}>
           <Animated.View style={{ width: '100%', maxWidth: 420, backgroundColor: '#ffffff', borderRadius: 12, padding: 16, transform: [{ scale: modalScale }] }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 8 }}>Publicar avaliação</Text>
+            <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 8 }}>Deixar avaliação</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
               {[1,2,3,4,5].map((n) => (
                 <TouchableOpacity key={n} onPress={() => setNewRating(n)}>

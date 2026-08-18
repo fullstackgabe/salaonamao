@@ -68,7 +68,7 @@ export default function BloquearDias() {
             <Text style={{ fontSize: 20, color: '#ec4899' }}>›</Text>
           </TouchableOpacity>
         </View>
-        <Text style={{ color: '#ec4899', fontSize: 12, fontWeight: '600' }}>Toque para marcar/desmarcar</Text>
+        <Text style={{ color: '#ec4899', fontSize: 12, fontWeight: '600' }}>Toque pra marcar ou desmarcar.</Text>
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
         {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, idx) => (
@@ -106,7 +106,7 @@ export default function BloquearDias() {
         <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1, borderColor: '#f9a8d4', marginRight: 6 }} />
         <Text style={{ color: '#6b7280', fontSize: 12, marginRight: 16 }}>Disponível</Text>
         <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: '#ec4899', marginRight: 6 }} />
-        <Text style={{ color: '#6b7280', fontSize: 12 }}>Bloqueado</Text>
+        <Text style={{ color: '#6b7280', fontSize: 12 }}>Indisponível</Text>
       </View>
     </View>
   )

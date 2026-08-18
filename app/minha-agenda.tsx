@@ -97,7 +97,7 @@ export default function MinhaAgenda() {
         </View>
       ) : bookings.length === 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ color: '#6b7280', textAlign: 'center' }}>Nenhum agendamento por aqui ainda.</Text>
+          <Text style={{ color: '#6b7280', textAlign: 'center' }}>Nenhum agendamento ainda.</Text>
         </View>
       ) : (
         <FlatList

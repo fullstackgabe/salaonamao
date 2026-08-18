@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, FlatList, TouchableOpacity, Dimensions, Image, TextInput, Animated, Easing, ActivityIndicator } from 'react-native'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { View, Text, FlatList, TouchableOpacity, Dimensions, Image, TextInput, Animated, Easing, ActivityIndicator, ScrollView } from 'react-native'
+import { useLocalSearchParams } from 'expo-router'
+import { useFocusEffect } from '@react-navigation/native'
 import { fetchProfessionals, fetchServices, fetchSlots, fetchBookings, fetchDaysOff, bookSlotByTime } from '@/lib/repo'
 import { AvailabilitySlot, Professional, Service } from '@/types'
- 
+
 
 export default function AgendaTab() {
+  const params = useLocalSearchParams<{ professionalId?: string }>()
   const [professionals, setProfessionals] = useState<Professional[]>([])
   const [professionalsLoading, setProfessionalsLoading] = useState(true)
   const [selected, setSelected] = useState<Professional | null>(null)
@@ -32,8 +35,15 @@ export default function AgendaTab() {
       Animated.timing(modalAnim, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start()
     }
   }, [reserveOpen])
+  const defaultTimeStr = () => {
+    if (!isSelectedDateToday) return '10:00'
+    const mins = Math.min(Math.max(minStartMinutesToday(), BUSINESS_START_HOUR * 60), BUSINESS_END_HOUR * 60)
+    const hh = Math.floor(mins / 60)
+    const mm = mins % 60
+    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
+  }
   const openReserveModal = () => {
-    setReserveService(null); setReserveTimeStr('')
+    setReserveService(null); setReserveTimeStr(defaultTimeStr())
     setReserveName(''); setReserveEmail(''); setReservePhone('')
     setReserveOpen(true)
   }
@@ -70,11 +80,6 @@ export default function AgendaTab() {
     return d.length <= 2 ? part1 : d.length <= 7 ? `(${part1}) ${part2}` : `(${part1}) ${part2}-${part3}`
   }
   const onPhoneChange = (t: string) => setReservePhone(formatPhone(t))
-  const formatTimeInput = (input: string) => {
-    const digits = input.replace(/\D/g, '').slice(0, 4)
-    if (digits.length <= 2) return digits
-    return `${digits.slice(0, 2)}:${digits.slice(2)}`
-  }
   const isEmailValid = (e: string) => /.+@.+\..+/.test(e)
   const BUSINESS_START_HOUR = 10
   const BUSINESS_END_HOUR = 20
@@ -85,7 +90,10 @@ export default function AgendaTab() {
       const rows = (data || []) as Professional[]
       rows.sort((a, b) => a.name.localeCompare(b.name))
       setProfessionals(rows)
-      if (!selected && rows.length > 0) setSelected(rows[0])
+      if (!selected && rows.length > 0) {
+        const match = params.professionalId ? rows.find((p) => String(p.id) === String(params.professionalId)) : null
+        setSelected(match || rows[0])
+      }
       setProfessionalsLoading(false)
     }
     load()
@@ -114,6 +122,14 @@ export default function AgendaTab() {
   }
 
   useEffect(() => { loadAgenda(selected) }, [selected?.id])
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!params.professionalId || professionals.length === 0) return
+      const match = professionals.find((p) => String(p.id) === String(params.professionalId))
+      if (match) setSelected(match)
+    }, [params.professionalId, professionals])
+  )
 
   const monthName = useMemo(() => monthCursor.toLocaleString('pt-BR', { month: 'long' }), [monthCursor])
   const year = monthCursor.getFullYear()
@@ -158,21 +174,9 @@ export default function AgendaTab() {
     return Math.ceil((now.getHours() * 60 + now.getMinutes()) / 15) * 15
   }
 
-  const minStartMinutes = isSelectedDateToday
-    ? Math.max(BUSINESS_START_HOUR * 60, minStartMinutesToday())
-    : BUSINESS_START_HOUR * 60
+  const minStartMinutes = BUSINESS_START_HOUR * 60
 
   const todayClosed = isSelectedDateToday && minStartMinutesToday() >= BUSINESS_END_HOUR * 60
-
-  useEffect(() => {
-    if (!reserveStart) return
-    const mins = reserveStart.getHours() * 60 + reserveStart.getMinutes()
-    if (mins < minStartMinutes) {
-      const hh = Math.floor(minStartMinutes / 60)
-      const mm = minStartMinutes % 60
-      setReserveTimeStr(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`)
-    }
-  }, [reserveStart, minStartMinutes])
 
   const dayFullyBooked = useMemo(() => {
     if (!reserveService || todayClosed) return false
@@ -192,22 +196,27 @@ export default function AgendaTab() {
     return true
   }, [reserveService, todayClosed, minStartMinutes, selectedDate, bookedForSelectedDay])
 
+  useEffect(() => {
+    if (!reserveStart) return
+    const mins = reserveStart.getHours() * 60 + reserveStart.getMinutes()
+    if (mins < minStartMinutes) {
+      const hh = Math.floor(minStartMinutes / 60)
+      const mm = minStartMinutes % 60
+      setReserveTimeStr(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`)
+    }
+  }, [reserveStart, minStartMinutes])
+
   const timeAvailability = useMemo(() => {
     if (!reserveStart || !reserveService) return null
     const mins = reserveStart.getHours() * 60 + reserveStart.getMinutes()
     if (mins < BUSINESS_START_HOUR * 60) {
-      return { ok: false, reason: 'Fora do horário de atendimento.' }
+      return { ok: false }
     }
     if (mins + reserveService.duration_min > BUSINESS_END_HOUR * 60) {
-      return {
-        ok: false,
-        reason: isSelectedDateToday
-          ? 'Hoje não temos mais horários disponíveis.'
-          : `Esse horário não cabe no expediente (até ${BUSINESS_END_HOUR}h).`,
-      }
+      return { ok: false }
     }
     if (reserveStart < new Date()) {
-      return { ok: false, reason: 'Esse horário já passou.' }
+      return { ok: false }
     }
     const end = new Date(reserveStart.getTime() + reserveService.duration_min * 60000)
     const overlaps = bookedForSelectedDay.some((ev) => {
@@ -215,16 +224,14 @@ export default function AgendaTab() {
       const evEnd = new Date(ev.end_time)
       return reserveStart < evEnd && end > evStart
     })
-    if (overlaps) return { ok: false, reason: 'Horário não disponível.' }
-    return { ok: true, reason: '' }
+    if (overlaps) return { ok: false }
+    return { ok: true }
   }, [reserveStart, reserveService, bookedForSelectedDay])
 
-  const formatDuration = (mins: number) => {
-    const h = Math.floor(mins / 60)
-    const m = mins % 60
-    if (h === 0) return `${m}min`
-    if (m === 0) return `${h}h`
-    return `${h}h${String(m).padStart(2, '0')}`
+  const formatTimeInput = (input: string) => {
+    const digits = input.replace(/\D/g, '').slice(0, 4)
+    if (digits.length <= 2) return digits
+    return `${digits.slice(0, 2)}:${digits.slice(2)}`
   }
 
   const adjustReserveTime = (deltaMin: number) => {
@@ -240,6 +247,14 @@ export default function AgendaTab() {
     setReserveTimeStr(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`)
   }
 
+  const formatDuration = (mins: number) => {
+    const h = Math.floor(mins / 60)
+    const m = mins % 60
+    if (h === 0) return `${m}min`
+    if (m === 0) return `${h}h`
+    return `${h}h${String(m).padStart(2, '0')}`
+  }
+
   if (professionalsLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
@@ -251,6 +266,7 @@ export default function AgendaTab() {
   return (
     <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
       <View style={{ paddingHorizontal: 20, paddingTop: 12, zIndex: 20 }}>
+        <Text style={{ color: '#9ca3af', fontSize: 12, marginBottom: 6 }}>Selecione uma profissional.</Text>
         <View style={{ position: 'relative' }}>
           <TouchableOpacity onPress={() => setOpenSelector((v) => !v)} onLayout={(e) => setSelectorH(e.nativeEvent.layout.height)} style={{ paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#e5e7eb', borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomLeftRadius: openSelector ? 0 : 8, borderBottomRightRadius: openSelector ? 0 : 8, backgroundColor: '#ffffff', flexDirection: 'row', alignItems: 'center' }}>
             {selected ? (
@@ -310,14 +326,17 @@ export default function AgendaTab() {
       </View>
       <View style={{ flex: 1, zIndex: 0 }}>
         <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 8 }}>
-            <TouchableOpacity onPress={() => { if (canGoPrev) setMonthCursor(new Date(year, monthCursor.getMonth() - 1, 1)) }}>
-              <Text style={{ fontSize: 18, color: canGoPrev ? '#ec4899' : '#d1d5db' }}>{'‹'}</Text>
-            </TouchableOpacity>
-            <Text style={{ marginHorizontal: 12, fontSize: 16, fontWeight: '600', textTransform: 'capitalize' }}>{monthName} {year}</Text>
-            <TouchableOpacity onPress={() => setMonthCursor(new Date(year, monthCursor.getMonth() + 1, 1))}>
-              <Text style={{ fontSize: 18, color: '#ec4899' }}>{'›'}</Text>
-            </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => { if (canGoPrev) setMonthCursor(new Date(year, monthCursor.getMonth() - 1, 1)) }}>
+                <Text style={{ fontSize: 18, color: canGoPrev ? '#ec4899' : '#d1d5db' }}>{'‹'}</Text>
+              </TouchableOpacity>
+              <Text style={{ marginHorizontal: 12, fontSize: 16, fontWeight: '600', textTransform: 'capitalize' }}>{monthName} {year}</Text>
+              <TouchableOpacity onPress={() => setMonthCursor(new Date(year, monthCursor.getMonth() + 1, 1))}>
+                <Text style={{ fontSize: 18, color: '#ec4899' }}>{'›'}</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={{ color: '#ec4899', fontSize: 12, fontWeight: '600' }}>Toque pra selecionar o dia.</Text>
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
             {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, idx) => (
@@ -330,14 +349,15 @@ export default function AgendaTab() {
               const isDisabled = isCurrentMonth && day < todayDay
               const isSelected = selectedDate.getDate() === day && selectedDate.getMonth() === monthCursor.getMonth()
               return (
-                <TouchableOpacity
-                  key={idx}
-                  disabled={isDisabled}
-                  style={{ width: '14.285%', height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: isSelected ? '#f9a8d4' : 'transparent' }}
-                  onPress={() => setSelectedDate(new Date(year, monthCursor.getMonth(), day))}
-                >
-                  <Text style={{ color: isDisabled ? '#9ca3af' : '#111827' }}>{day}</Text>
-                </TouchableOpacity>
+                <View key={idx} style={{ width: '14.285%', height: 36, alignItems: 'center', justifyContent: 'center' }}>
+                  <TouchableOpacity
+                    disabled={isDisabled}
+                    style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: isSelected ? '#f9a8d4' : 'transparent' }}
+                    onPress={() => setSelectedDate(new Date(year, monthCursor.getMonth(), day))}
+                  >
+                    <Text style={{ color: isSelected ? '#ffffff' : isDisabled ? '#9ca3af' : '#111827', fontWeight: isSelected ? '700' : '500' }}>{day}</Text>
+                  </TouchableOpacity>
+                </View>
               )
             })}
           </View>
@@ -355,7 +375,7 @@ export default function AgendaTab() {
             </TouchableOpacity>
           )}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <Text style={{ color: '#111827', fontWeight: '700', fontSize: 15 }}>Eventos</Text>
+            <Text style={{ color: '#111827', fontWeight: '700', fontSize: 15 }}>Agendamentos</Text>
           </View>
           {selected && (
             <FlatList
@@ -383,7 +403,7 @@ export default function AgendaTab() {
                   </View>
                 )
               }}
-              ListEmptyComponent={<Text style={{ color: '#6b7280' }}>Nenhum evento para esse dia.</Text>}
+              ListEmptyComponent={<Text style={{ color: '#6b7280' }}>Nenhum agendamento ainda.</Text>}
               contentContainerStyle={{ paddingBottom: 24 }}
               showsVerticalScrollIndicator={false}
             />
@@ -404,7 +424,7 @@ export default function AgendaTab() {
                     keyExtractor={(item) => String(item.id)}
                     renderItem={({ item }) => (
                       <TouchableOpacity
-                        onPress={() => { setReserveService(item); setReserveTimeStr('') }}
+                        onPress={() => { setReserveService(item); setReserveTimeStr(defaultTimeStr()) }}
                         style={{ paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff' }}
                       >
                         <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#ec4899', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
@@ -439,6 +459,7 @@ export default function AgendaTab() {
                   />
                 </View>
               </View>
+              {reserveService && (
               <View style={{ marginBottom: 8 }}>
                   {todayClosed ? (
                     <Text style={{ color: '#ec4899', fontSize: 14, fontWeight: '700', paddingVertical: 16 }}>
@@ -450,7 +471,14 @@ export default function AgendaTab() {
                     </Text>
                   ) : (
                     <>
-                      <Text>Horário</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text>Horário</Text>
+                        {reserveTimeStr && timeAvailability && (
+                          <Text style={{ color: timeAvailability.ok ? '#16a34a' : '#dc2626', fontSize: 13, fontWeight: '600' }}>
+                            {timeAvailability.ok ? 'Disponível ✓' : 'Indisponível ✕'}
+                          </Text>
+                        )}
+                      </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
                         <TouchableOpacity
                           onPress={() => adjustReserveTime(-15)}
@@ -473,17 +501,10 @@ export default function AgendaTab() {
                           <Text style={{ fontSize: 16, color: '#ec4899', fontWeight: '700' }}>+</Text>
                         </TouchableOpacity>
                       </View>
-                      <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 4 }}>
-                        Atendemos das {BUSINESS_START_HOUR}h às {BUSINESS_END_HOUR}h.
-                      </Text>
-                      {reserveTimeStr && timeAvailability && (
-                        <Text style={{ color: timeAvailability.ok ? '#16a34a' : '#dc2626', fontSize: 13, marginTop: 6, fontWeight: '600' }}>
-                          {timeAvailability.ok ? 'Horário disponível ✓' : timeAvailability.reason}
-                        </Text>
-                      )}
                     </>
                   )}
               </View>
+              )}
               <View style={{ marginBottom: 8 }}>
                 <Text>Nome completo</Text>
                 <TextInput value={reserveName} onChangeText={setReserveName} style={{ height: 36, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 10 }} />

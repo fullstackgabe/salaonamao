@@ -1,16 +1,49 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, Image } from 'react-native'
 import { router } from 'expo-router'
 import { useAuth } from '@/lib/auth'
-import ProfessionalEditor from '@/components/ProfessionalEditor'
+import { fetchProfessionalById } from '@/lib/repo'
 
 const DEMO_EMAIL = 'ana@salaonamao.com'
 const DEMO_SENHA = 'salao1234'
+
+const navBtnStyle = {
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  justifyContent: 'space-between' as const,
+  backgroundColor: '#fce7f3',
+  borderWidth: 1,
+  borderColor: '#ec4899',
+  borderRadius: 10,
+  paddingVertical: 14,
+  paddingHorizontal: 16,
+  marginBottom: 8,
+}
+const navBtnText = { color: '#ec4899', fontWeight: '700' as const, fontSize: 15 }
+
+function NavButton({ titulo, onPress, style }: { titulo: string; onPress: () => void; style?: object }) {
+  return (
+    <TouchableOpacity onPress={onPress} style={[navBtnStyle, style]}>
+      <Text style={navBtnText}>{titulo}</Text>
+      <Text style={navBtnText}>›</Text>
+    </TouchableOpacity>
+  )
+}
 
 export default function Login() {
   const { session, signIn, signOut } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [profile, setProfile] = useState<{ name: string; avatar_url: string } | null>(null)
+
+  const professionalId = session?.user?.app_metadata?.professional_id
+
+  useEffect(() => {
+    if (!professionalId) return
+    fetchProfessionalById(String(professionalId)).then((p) => {
+      if (p) setProfile({ name: p.name || '', avatar_url: typeof p.avatar_url === 'string' ? p.avatar_url : '' })
+    })
+  }, [professionalId])
 
   const goBackToApp = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))
 
@@ -22,40 +55,35 @@ export default function Login() {
   }
 
   if (session) {
-    const professionalId = session?.user?.app_metadata?.professional_id
     return (
       <ScrollView contentContainerStyle={{ padding: 24, backgroundColor: '#fff', flexGrow: 1 }}>
-        <View style={{ alignItems: 'center', marginBottom: 16 }}>
-          <Text style={{ fontSize: 20, fontWeight: '700', color: '#111827' }}>Meu perfil</Text>
+        <View style={{ alignItems: 'center', marginBottom: 24 }}>
+          {profile?.avatar_url ? (
+            <Image source={{ uri: profile.avatar_url }} style={{ width: 80, height: 80, borderRadius: 40, marginBottom: 12 }} />
+          ) : (
+            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#e5e7eb', marginBottom: 12 }} />
+          )}
+          <Text style={{ fontSize: 20, fontWeight: '700', color: '#111827' }}>{profile?.name || 'Meu perfil'}</Text>
           <Text style={{ color: '#6b7280', marginTop: 4 }}>{session?.user?.email}</Text>
         </View>
 
         {professionalId ? (
-          <ProfessionalEditor professionalId={String(professionalId)}>
-            <TouchableOpacity
-              onPress={() => router.push('/minha-agenda')}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fce7f3', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 8 }}
-            >
-              <Text style={{ color: '#ec4899', fontWeight: '700', fontSize: 15 }}>Minha agenda</Text>
-              <Text style={{ color: '#ec4899', fontWeight: '700' }}>›</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push('/minhas-folgas')}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fce7f3', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 2 }}
-            >
-              <Text style={{ color: '#ec4899', fontWeight: '700', fontSize: 15 }}>Minhas folgas</Text>
-              <Text style={{ color: '#ec4899', fontWeight: '700' }}>›</Text>
-            </TouchableOpacity>
-          </ProfessionalEditor>
+          <View>
+            <NavButton titulo="Editar perfil" onPress={() => router.push('/editar-perfil')} />
+            <NavButton titulo="Portfólio" onPress={() => router.push('/meus-trabalhos')} />
+            <NavButton titulo="Especialidades" onPress={() => router.push('/especialidades')} />
+            <NavButton titulo="Agendamentos" onPress={() => router.push('/minha-agenda')} />
+            <NavButton titulo="Disponibilidade" onPress={() => router.push('/minhas-folgas')} style={{ marginBottom: 2 }} />
+          </View>
         ) : (
           <Text style={{ color: '#6b7280', textAlign: 'center', marginVertical: 16 }}>Sua conta ainda não está vinculada a um perfil.</Text>
         )}
 
         <TouchableOpacity
           onPress={async () => { await signOut(); goBackToApp() }}
-          style={{ borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 10 }}
+          style={{ borderWidth: 1, borderColor: '#ec4899', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 10 }}
         >
-          <Text style={{ color: '#6b7280', fontWeight: '700', fontSize: 15 }}>Sair</Text>
+          <Text style={{ color: '#ec4899', fontWeight: '700', fontSize: 15 }}>Sair</Text>
         </TouchableOpacity>
       </ScrollView>
     )
@@ -64,9 +92,7 @@ export default function Login() {
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, backgroundColor: '#fff' }}>
       <View style={{ alignItems: 'center', marginBottom: 24 }}>
-        <Image source={require('../imgs/logo.png')} style={{ height: 56, width: 140, resizeMode: 'contain', marginBottom: 12 }} />
-        <Text style={{ fontSize: 22, fontWeight: '700', color: '#111827' }}>Área do profissional</Text>
-        <Text style={{ color: '#6b7280', marginTop: 4, textAlign: 'center' }}>Entre para gerenciar sua agenda e seu perfil</Text>
+        <Image source={require('../imgs/logo.png')} style={{ height: 72, width: 180, resizeMode: 'contain' }} />
       </View>
 
       <TextInput

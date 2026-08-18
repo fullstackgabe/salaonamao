@@ -31,12 +31,8 @@ export default function TabsLayout() {
             <Image source={require('../../imgs/logo.png')} style={{ height: 40, width: 100, resizeMode: 'contain' }} />
           ),
           headerRight: () => (
-            <Pressable
-              onPress={() => router.push('/login')}
-              hitSlop={12}
-              style={{ backgroundColor: '#fce7f3', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}
-            >
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#ec4899' }}>Login</Text>
+            <Pressable onPress={() => router.push('/login')} hitSlop={12}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827' }}>Login</Text>
             </Pressable>
           ),
           tabBarIcon: ({ focused }) => (
