@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, FlatList, TouchableOpacity, Dimensions, Image, TextInput, Animated, Easing } from 'react-native'
+import { View, Text, FlatList, TouchableOpacity, Dimensions, Image, TextInput, Animated, Easing, ActivityIndicator } from 'react-native'
 import { fetchProfessionals, fetchServices, fetchSlots, fetchBookings, fetchDaysOff, bookSlotByTime } from '@/lib/repo'
 import { AvailabilitySlot, Professional, Service } from '@/types'
  
 
 export default function AgendaTab() {
   const [professionals, setProfessionals] = useState<Professional[]>([])
+  const [professionalsLoading, setProfessionalsLoading] = useState(true)
   const [selected, setSelected] = useState<Professional | null>(null)
   const [monthCursor, setMonthCursor] = useState<Date>(new Date())
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -85,6 +86,7 @@ export default function AgendaTab() {
       rows.sort((a, b) => a.name.localeCompare(b.name))
       setProfessionals(rows)
       if (!selected && rows.length > 0) setSelected(rows[0])
+      setProfessionalsLoading(false)
     }
     load()
   }, [])
@@ -236,6 +238,14 @@ export default function AgendaTab() {
     const hh = Math.floor(mins / 60)
     const mm = mins % 60
     setReserveTimeStr(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`)
+  }
+
+  if (professionalsLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color="#ec4899" />
+      </View>
+    )
   }
 
   return (

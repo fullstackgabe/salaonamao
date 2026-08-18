@@ -34,7 +34,8 @@ export default function RootLayout() {
           <Stack.Screen name="professionals/[id]" options={{ title: 'Profissional', headerBackTitle: 'Voltar', headerBackTitleVisible: true }} />
           <Stack.Screen name="reserve/index" options={{ title: 'Reserva', headerBackTitle: 'Voltar', headerBackTitleVisible: true }} />
           <Stack.Screen name="login" options={{ title: 'Área do profissional', headerBackTitle: 'Voltar', headerBackTitleVisible: true }} />
-          <Stack.Screen name="minha-agenda" options={{ title: 'Gerenciar agenda', headerBackTitle: 'Voltar', headerBackTitleVisible: true }} />
+          <Stack.Screen name="minha-agenda" options={{ title: 'Minha agenda', headerBackTitle: 'Voltar', headerBackTitleVisible: true }} />
+          <Stack.Screen name="minhas-folgas" options={{ title: 'Minhas folgas', headerBackTitle: 'Voltar', headerBackTitleVisible: true }} />
         </Stack>
       </AuthProvider>
     </SafeAreaView>

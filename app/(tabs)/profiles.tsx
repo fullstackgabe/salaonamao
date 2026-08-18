@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react'
-import { View, FlatList } from 'react-native'
+import { View, FlatList, ActivityIndicator } from 'react-native'
 import { fetchProfessionals } from '@/lib/repo'
 import ProfessionalCard from '@/components/ProfessionalCard'
 import { Professional } from '@/types'
 
 export default function Profiles() {
   const [data, setData] = useState<Professional[]>([])
+  const [loading, setLoading] = useState(true)
   useEffect(() => {
-    fetchProfessionals().then((rows) => setData(rows as any))
+    fetchProfessionals().then((rows) => { setData(rows as any); setLoading(false) })
   }, [])
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color="#ec4899" />
+      </View>
+    )
+  }
   return (
     <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
       <FlatList

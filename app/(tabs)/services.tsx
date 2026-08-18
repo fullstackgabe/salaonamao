@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text, FlatList } from 'react-native'
+import { View, Text, FlatList, ActivityIndicator } from 'react-native'
 import { fetchServices } from '@/lib/repo'
 import { Service } from '@/types'
 
@@ -7,11 +7,20 @@ const formatBRL = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace('.',
 
 export default function ServicesTab() {
   const [allServices, setAllServices] = useState<Service[]>([])
+  const [loading, setLoading] = useState(true)
   useEffect(() => {
-    fetchServices().then((rows) => setAllServices(rows as any))
+    fetchServices().then((rows) => { setAllServices(rows as any); setLoading(false) })
   }, [])
 
   const services = [...allServices].sort((a, b) => a.name.localeCompare(b.name))
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color="#ec4899" />
+      </View>
+    )
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: '#ffffff' }}>

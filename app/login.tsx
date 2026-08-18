@@ -34,9 +34,16 @@ export default function Login() {
           <ProfessionalEditor professionalId={String(professionalId)}>
             <TouchableOpacity
               onPress={() => router.push('/minha-agenda')}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fce7f3', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 8 }}
+            >
+              <Text style={{ color: '#ec4899', fontWeight: '700', fontSize: 15 }}>Minha agenda</Text>
+              <Text style={{ color: '#ec4899', fontWeight: '700' }}>›</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/minhas-folgas')}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fce7f3', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 2 }}
             >
-              <Text style={{ color: '#ec4899', fontWeight: '700', fontSize: 15 }}>Gerenciar agenda</Text>
+              <Text style={{ color: '#ec4899', fontWeight: '700', fontSize: 15 }}>Minhas folgas</Text>
               <Text style={{ color: '#ec4899', fontWeight: '700' }}>›</Text>
             </TouchableOpacity>
           </ProfessionalEditor>
