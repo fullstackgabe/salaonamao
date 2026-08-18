@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
-import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Image } from 'react-native'
+import { useCallback, useEffect, useState } from 'react'
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Pressable, Image } from 'react-native'
 import { router } from 'expo-router'
+import { useFocusEffect } from '@react-navigation/native'
 import { fetchServices, fetchProfessionals } from '@/lib/repo'
 import { Professional, Service } from '@/types'
 
@@ -11,6 +12,12 @@ export default function ServicesTab() {
   const [professionals, setProfessionals] = useState<Professional[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedService, setSelectedService] = useState<Service | null>(null)
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => setSelectedService(null)
+    }, [])
+  )
 
   useEffect(() => {
     Promise.all([fetchServices(), fetchProfessionals()]).then(([s, p]) => {
@@ -72,14 +79,19 @@ export default function ServicesTab() {
       />
 
       {selectedService && (
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
-          <View style={{ width: '100%', maxWidth: 420, maxHeight: '80%', backgroundColor: '#ffffff', borderRadius: 12, padding: 18 }}>
-            <Text style={{ fontWeight: '700', fontSize: 17, color: '#111827', marginBottom: 4 }}>{selectedService.name}</Text>
-            <Text style={{ color: '#6b7280', marginBottom: 14 }}>Profissionais que fazem esse procedimento</Text>
+        <Pressable
+          onPress={() => setSelectedService(null)}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}
+        >
+          <Pressable onPress={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, maxHeight: '80%', backgroundColor: '#ffffff', borderRadius: 12, padding: 18 }}>
+            <Text style={{ fontWeight: '700', fontSize: 17, color: '#111827', marginBottom: 10 }}>{selectedService.name}</Text>
 
             {matchingProfessionals.length === 0 ? (
-              <Text style={{ color: '#9ca3af', marginBottom: 12 }}>Nenhum profissional oferece esse serviço ainda.</Text>
+              <Text style={{ color: '#9ca3af', marginBottom: 16 }}>Nenhum profissional oferece esse serviço ainda.</Text>
+
             ) : (
+              <>
+              <Text style={{ color: '#6b7280', marginBottom: 14 }}>Profissionais que fazem esse procedimento</Text>
               <FlatList
                 data={matchingProfessionals}
                 keyExtractor={(p) => String(p.id)}
@@ -108,6 +120,7 @@ export default function ServicesTab() {
                   </View>
                 )}
               />
+              </>
             )}
 
             <TouchableOpacity
@@ -116,8 +129,8 @@ export default function ServicesTab() {
             >
               <Text style={{ color: '#6b7280', fontWeight: '700' }}>Fechar</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       )}
     </View>
   )

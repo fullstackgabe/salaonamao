@@ -1,11 +1,27 @@
 import { useEffect, useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, Image } from 'react-native'
-import { router } from 'expo-router'
+import { View, Text, TextInput, TouchableOpacity, Pressable, ActivityIndicator, ScrollView, Image } from 'react-native'
+import { router, useNavigation } from 'expo-router'
+import Svg, { Path } from 'react-native-svg'
 import { useAuth } from '@/lib/auth'
 import { fetchProfessionalById } from '@/lib/repo'
 
 const DEMO_EMAIL = 'ana@salaonamao.com'
 const DEMO_SENHA = 'salao1234'
+
+function LogoutIcon({ size = 28, color = '#ec4899' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </Svg>
+  )
+}
 
 const navBtnStyle = {
   flexDirection: 'row' as const,
@@ -32,6 +48,7 @@ function NavButton({ titulo, onPress, style }: { titulo: string; onPress: () => 
 
 export default function Login() {
   const { session, signIn, signOut } = useAuth()
+  const navigation = useNavigation()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<{ name: string; avatar_url: string } | null>(null)
@@ -46,6 +63,19 @@ export default function Login() {
   }, [professionalId])
 
   const goBackToApp = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))
+  const doSignOut = async () => { await signOut(); goBackToApp() }
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: session
+        ? () => (
+          <Pressable onPress={doSignOut} hitSlop={12}>
+            <LogoutIcon />
+          </Pressable>
+        )
+        : undefined,
+    })
+  }, [session])
 
   const submit = async () => {
     setBusy(true); setError(null)
@@ -78,13 +108,6 @@ export default function Login() {
         ) : (
           <Text style={{ color: '#6b7280', textAlign: 'center', marginVertical: 16 }}>Sua conta ainda não está vinculada a um perfil.</Text>
         )}
-
-        <TouchableOpacity
-          onPress={async () => { await signOut(); goBackToApp() }}
-          style={{ borderWidth: 1, borderColor: '#ec4899', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 10 }}
-        >
-          <Text style={{ color: '#ec4899', fontWeight: '700', fontSize: 15 }}>Sair</Text>
-        </TouchableOpacity>
       </ScrollView>
     )
   }

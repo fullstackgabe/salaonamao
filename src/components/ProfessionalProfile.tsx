@@ -1,5 +1,6 @@
 import { View, Text, Image, TouchableOpacity, TextInput, ScrollView, Animated } from 'react-native'
 import { useEffect, useState } from 'react'
+import { router } from 'expo-router'
 import { fetchPortfolios, fetchReviews, fetchServices, addReview } from '@/lib/repo'
 import { Professional, PortfolioItem, Review, Service } from '@/types'
 
@@ -62,9 +63,9 @@ export default function ProfessionalProfile({ professional }: Props) {
           {services.length > 0 ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
               {services.map((item) => (
-                <View key={String(item.id)} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 6, marginBottom: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9999, borderWidth: 1, borderColor: '#ec4899', backgroundColor: '#fce7f3' }}>
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#ec4899' }}>{item.name}</Text>
-                  <Text style={{ color: '#ec4899', marginLeft: 4, fontSize: 11 }}>{Math.round(item.duration_min)} min</Text>
+                <View key={String(item.id)} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8, marginBottom: 8, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 9999, borderWidth: 1, borderColor: '#ec4899', backgroundColor: '#fce7f3' }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#ec4899' }}>{item.name}</Text>
+                  <Text style={{ color: '#ec4899', marginLeft: 5, fontSize: 12 }}>{Math.round(item.duration_min)} min</Text>
                 </View>
               ))}
             </View>
@@ -107,9 +108,18 @@ export default function ProfessionalProfile({ professional }: Props) {
             </View>
           ))}
           <TouchableOpacity onPress={() => setReviewModalOpen(true)} style={{ marginTop: 8, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#ec4899', borderRadius: 10 }}>
-            <Text style={{ color: '#ffffff', fontWeight: '600', textAlign: 'center' }}>Deixar avaliação</Text>
+            <Text style={{ color: '#ffffff', fontWeight: '600', textAlign: 'center' }}>Publicar avaliação</Text>
           </TouchableOpacity>
         </View>
+      </View>
+
+      <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+        <TouchableOpacity
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+          style={{ borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingVertical: 14, alignItems: 'center' }}
+        >
+          <Text style={{ color: '#6b7280', fontWeight: '700', fontSize: 15 }}>Fechar</Text>
+        </TouchableOpacity>
       </View>
 
       </ScrollView>
@@ -128,6 +138,7 @@ export default function ProfessionalProfile({ professional }: Props) {
               value={newComment}
               onChangeText={setNewComment}
               placeholder="Escreva sua avaliação"
+              placeholderTextColor="#9ca3af"
               multiline
               style={{ minHeight: 80, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 }}
             />

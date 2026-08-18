@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, FlatList, TouchableOpacity, Dimensions, Image, TextInput, Animated, Easing, ActivityIndicator, ScrollView } from 'react-native'
+import { View, Text, FlatList, TouchableOpacity, Pressable, Dimensions, Image, TextInput, Animated, Easing, ActivityIndicator, ScrollView } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { useFocusEffect } from '@react-navigation/native'
 import { fetchProfessionals, fetchServices, fetchSlots, fetchBookings, fetchDaysOff, bookSlotByTime } from '@/lib/repo'
@@ -90,9 +90,9 @@ export default function AgendaTab() {
       const rows = (data || []) as Professional[]
       rows.sort((a, b) => a.name.localeCompare(b.name))
       setProfessionals(rows)
-      if (!selected && rows.length > 0) {
-        const match = params.professionalId ? rows.find((p) => String(p.id) === String(params.professionalId)) : null
-        setSelected(match || rows[0])
+      if (!selected && rows.length > 0 && params.professionalId) {
+        const match = rows.find((p) => String(p.id) === String(params.professionalId))
+        if (match) setSelected(match)
       }
       setProfessionalsLoading(false)
     }
@@ -129,6 +129,29 @@ export default function AgendaTab() {
       const match = professionals.find((p) => String(p.id) === String(params.professionalId))
       if (match) setSelected(match)
     }, [params.professionalId, professionals])
+  )
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAgenda(selected)
+    }, [selected?.id])
+  )
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setOpenSelector(false)
+        setReserveOpen(false)
+        setReserveError(null)
+        setReserveBusy(false)
+        setReserveTimeStr('')
+        setReserveService(null)
+        setReserveName('')
+        setReserveEmail('')
+        setReservePhone('')
+        setSelected(null)
+      }
+    }, [])
   )
 
   const monthName = useMemo(() => monthCursor.toLocaleString('pt-BR', { month: 'long' }), [monthCursor])
@@ -265,10 +288,16 @@ export default function AgendaTab() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
+      {openSelector && (
+        <Pressable
+          onPress={() => setOpenSelector(false)}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 15 }}
+        />
+      )}
       <View style={{ paddingHorizontal: 20, paddingTop: 12, zIndex: 20 }}>
-        <Text style={{ color: '#9ca3af', fontSize: 12, marginBottom: 6 }}>Selecione uma profissional.</Text>
+        <Text style={{ color: '#111827', fontSize: 12, marginBottom: 6 }}>Selecione uma profissional.</Text>
         <View style={{ position: 'relative' }}>
-          <TouchableOpacity onPress={() => setOpenSelector((v) => !v)} onLayout={(e) => setSelectorH(e.nativeEvent.layout.height)} style={{ paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#e5e7eb', borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomLeftRadius: openSelector ? 0 : 8, borderBottomRightRadius: openSelector ? 0 : 8, backgroundColor: '#ffffff', flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => setOpenSelector((v) => !v)} onLayout={(e) => setSelectorH(e.nativeEvent.layout.height)} style={{ minHeight: 48, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#ec4899', borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomLeftRadius: openSelector ? 0 : 8, borderBottomRightRadius: openSelector ? 0 : 8, backgroundColor: '#ffffff', flexDirection: 'row', alignItems: 'center' }}>
             {selected ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                 {selected.avatar_url ? (
@@ -276,21 +305,28 @@ export default function AgendaTab() {
                 ) : (
                   <View style={{ width: 28, height: 28, borderRadius: 14, marginRight: 8, backgroundColor: '#e5e7eb' }} />
                 )}
-                <Text style={{ fontWeight: '600', color: '#111827', flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">{selected.name}</Text>
+                <Text style={openSelector ? { fontWeight: '600', color: '#111827', flex: 1 } : { fontWeight: '600', color: '#111827', flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">{selected.name}</Text>
                 <View style={{ marginLeft: 8, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#fde7f3', borderRadius: 999 }}>
-                  <Text style={{ color: '#ec4899', fontWeight: '600' }}>{(selected.rating ?? 0).toFixed(1)}</Text>
+                  <Text style={{ color: '#ec4899', fontWeight: '600' }}>★ {(selected.rating ?? 0).toFixed(1)}</Text>
                 </View>
               </View>
             ) : (
-              <Text style={{ color: '#6b7280', flex: 1 }}>Selecione</Text>
+              <Text style={{ color: '#9ca3af', flex: 1 }}>Selecione</Text>
             )}
-            <View style={{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center', marginLeft: 6 }}>
-              <Text style={{ color: '#ec4899', fontSize: 12, lineHeight: 14, textAlign: 'center' }}>{openSelector ? '▲' : '▼'}</Text>
-            </View>
+            {!openSelector && (
+              <View style={{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center', marginLeft: 6 }}>
+                <Text style={{ color: '#ec4899', fontSize: 12, lineHeight: 14, textAlign: 'center' }}>▼</Text>
+              </View>
+            )}
           </TouchableOpacity>
-          {openSelector && (
-            <View style={{ position: 'absolute', top: selectorH - 1, left: 0, right: 0, zIndex: 30, maxHeight: Math.min(300, Math.round(Dimensions.get('window').height * 0.45)), borderWidth: 1, borderColor: '#e5e7eb', borderTopWidth: 0, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, overflow: 'hidden', backgroundColor: '#ffffff', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
+          {openSelector && (() => {
+            const rowHeight = 53
+            const available = Math.min(300, Math.round(Dimensions.get('window').height * 0.45))
+            const listMaxHeight = Math.max(rowHeight, Math.floor(available / rowHeight) * rowHeight)
+            return (
+            <View style={{ position: 'absolute', top: selectorH - 1, left: 0, right: 0, zIndex: 30, borderWidth: 1, borderColor: '#ec4899', borderTopWidth: 0, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, overflow: 'hidden', backgroundColor: '#ffffff', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
               <FlatList
+                style={{ maxHeight: listMaxHeight }}
                 data={professionals.filter((p) => String(p.id) !== String(selected?.id))}
                 keyExtractor={(item) => String(item.id)}
                 renderItem={({ item }) => {
@@ -321,22 +357,31 @@ export default function AgendaTab() {
                 showsVerticalScrollIndicator={false}
               />
             </View>
-          )}
+            )
+          })()}
         </View>
       </View>
       <View style={{ flex: 1, zIndex: 0 }}>
-        <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+        <View style={{ position: 'relative' }}>
+        {!selected && (
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 5, cursor: 'not-allowed' } as any} />
+        )}
+        <View style={{ paddingHorizontal: 20, paddingTop: 8 }} pointerEvents={selected ? 'auto' : 'none'}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity onPress={() => { if (canGoPrev) setMonthCursor(new Date(year, monthCursor.getMonth() - 1, 1)) }}>
-                <Text style={{ fontSize: 18, color: canGoPrev ? '#ec4899' : '#d1d5db' }}>{'‹'}</Text>
-              </TouchableOpacity>
+              {selected && (
+                <TouchableOpacity onPress={() => { if (canGoPrev) setMonthCursor(new Date(year, monthCursor.getMonth() - 1, 1)) }}>
+                  <Text style={{ fontSize: 18, color: '#111827' }}>{'‹'}</Text>
+                </TouchableOpacity>
+              )}
               <Text style={{ marginHorizontal: 12, fontSize: 16, fontWeight: '600', textTransform: 'capitalize' }}>{monthName} {year}</Text>
-              <TouchableOpacity onPress={() => setMonthCursor(new Date(year, monthCursor.getMonth() + 1, 1))}>
-                <Text style={{ fontSize: 18, color: '#ec4899' }}>{'›'}</Text>
-              </TouchableOpacity>
+              {selected && (
+                <TouchableOpacity onPress={() => setMonthCursor(new Date(year, monthCursor.getMonth() + 1, 1))}>
+                  <Text style={{ fontSize: 18, color: '#ec4899' }}>{'›'}</Text>
+                </TouchableOpacity>
+              )}
             </View>
-            <Text style={{ color: '#ec4899', fontSize: 12, fontWeight: '600' }}>Toque pra selecionar o dia.</Text>
+            {selected && <Text style={{ color: '#ec4899', fontSize: 12, fontWeight: '600' }}>Toque pra selecionar o dia.</Text>}
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
             {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, idx) => (
@@ -347,7 +392,7 @@ export default function AgendaTab() {
             {daysArray.map((day, idx) => {
               if (day === null) return (<View key={idx} style={{ width: '14.285%', height: 36 }} />)
               const isDisabled = isCurrentMonth && day < todayDay
-              const isSelected = selectedDate.getDate() === day && selectedDate.getMonth() === monthCursor.getMonth()
+              const isSelected = !!selected && selectedDate.getDate() === day && selectedDate.getMonth() === monthCursor.getMonth()
               return (
                 <View key={idx} style={{ width: '14.285%', height: 36, alignItems: 'center', justifyContent: 'center' }}>
                   <TouchableOpacity
@@ -362,8 +407,9 @@ export default function AgendaTab() {
             })}
           </View>
         </View>
+        </View>
         <View style={{ flex: 1, marginTop: 16, paddingTop: 16, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: '#f3f4f6', backgroundColor: '#ffffff' }}>
-          {selected && dayUnavailable ? (
+          {!selected ? null : dayUnavailable ? (
             <Text style={{ color: '#ec4899', fontSize: 14, fontWeight: '700', paddingVertical: 16 }}>
               Indisponível nesse dia.
             </Text>

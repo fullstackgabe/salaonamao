@@ -1,11 +1,13 @@
 import { Tabs, router } from 'expo-router'
 import { View, Image, Pressable, Text } from 'react-native'
+import { useAuth } from '@/lib/auth'
 
 const HeaderTitle = (title: string) => () => (
   <Text style={{ fontSize: 20, fontWeight: '600', color: '#111827' }}>{title}</Text>
 )
 
 export default function TabsLayout() {
+  const { session } = useAuth()
   return (
     <Tabs
       screenOptions={{
@@ -32,7 +34,7 @@ export default function TabsLayout() {
           ),
           headerRight: () => (
             <Pressable onPress={() => router.push('/login')} hitSlop={12}>
-              <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827' }}>Login</Text>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827' }}>{session ? 'Perfil' : 'Login'}</Text>
             </Pressable>
           ),
           tabBarIcon: ({ focused }) => (
