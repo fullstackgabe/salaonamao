@@ -143,7 +143,7 @@ export default function AgendaTab() {
       return { ok: false, reason: `Fora do horário de atendimento (${BUSINESS_START_HOUR}h às ${BUSINESS_END_HOUR}h).` }
     }
     if (reserveStart < new Date()) {
-      return { ok: false, reason: 'Horário não disponível.' }
+      return { ok: false, reason: 'Esse horário já passou.' }
     }
     const end = new Date(reserveStart.getTime() + reserveService.duration_min * 60000)
     const overlaps = bookedForSelectedDay.some((ev) => {
@@ -352,6 +352,8 @@ export default function AgendaTab() {
                         type: 'time',
                         value: reserveTimeStr,
                         step: 60,
+                        min: `${String(BUSINESS_START_HOUR).padStart(2, '0')}:00`,
+                        max: `${String(BUSINESS_END_HOUR).padStart(2, '0')}:00`,
                         onChange: (e: any) => setReserveTimeStr(e.target.value),
                         style: {
                           border: '1px solid #e5e7eb',
@@ -362,6 +364,7 @@ export default function AgendaTab() {
                           boxSizing: 'border-box',
                           fontFamily: 'inherit',
                           color: '#111827',
+                          accentColor: '#ec4899',
                         },
                       })
                     ) : (

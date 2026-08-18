@@ -18,6 +18,8 @@ export default function MinhaAgenda() {
   const [selected, setSelected] = useState<any | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<any | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
+  const [deletingAll, setDeletingAll] = useState(false)
 
   const load = async () => {
     if (!professionalId) return
@@ -35,6 +37,15 @@ export default function MinhaAgenda() {
     await cancelBooking(String(confirmDelete.id))
     setDeleting(false)
     setConfirmDelete(null)
+    setSelected(null)
+    load()
+  }
+
+  const confirmDeleteAllNow = async () => {
+    setDeletingAll(true)
+    await Promise.all(bookings.map((b) => cancelBooking(String(b.id))))
+    setDeletingAll(false)
+    setConfirmDeleteAll(false)
     setSelected(null)
     load()
   }
@@ -60,6 +71,16 @@ export default function MinhaAgenda() {
           data={bookings}
           keyExtractor={(b) => String(b.id)}
           contentContainerStyle={{ padding: 16 }}
+          ListHeaderComponent={
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 10 }}>
+              <TouchableOpacity
+                onPress={() => setConfirmDeleteAll(true)}
+                style={{ width: 33, height: 33, borderRadius: 999, backgroundColor: '#dc2626', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text style={{ fontSize: 15 }}>🗑️</Text>
+              </TouchableOpacity>
+            </View>
+          }
           renderItem={({ item: b }) => (
             <TouchableOpacity
               onPress={() => setSelected(b)}
